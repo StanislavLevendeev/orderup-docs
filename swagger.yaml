@@ -1,718 +1,993 @@
 ---
 swagger: "2.0"
 info:
-  description: "This is a sample server Petstore server.  You can find out more about\
-    \ Swagger at [http://swagger.io](http://swagger.io) or on [irc.freenode.net, #swagger](http://swagger.io/irc/).\
-    \  For this sample, you can use the api key `special-key` to test the authorization\
-    \ filters."
-  version: "1.0.5"
-  title: "Swagger Petstore"
-  termsOfService: "http://swagger.io/terms/"
-  contact:
-    email: "apiteam@swagger.io"
-  license:
-    name: "Apache 2.0"
-    url: "http://www.apache.org/licenses/LICENSE-2.0.html"
-host: "petstore.swagger.io"
-basePath: "/v2"
-tags:
-- name: "pet"
-  description: "Everything about your Pets"
-  externalDocs:
-    description: "Find out more"
-    url: "http://swagger.io"
-- name: "store"
-  description: "Access to Petstore orders"
-- name: "user"
-  description: "Operations about user"
-  externalDocs:
-    description: "Find out more about our store"
-    url: "http://swagger.io"
+  title: "OrderUp API"
+  version: "2.0.0"
+  description: |
+    API documentation for the OrderUp microservices platform.
+
+    External client traffic is handled by NGINX API Gateway, which routes requests to domain services.
+    Service discovery is handled by Consul so service instances can register and be resolved dynamically.
+
+    Communication patterns:
+    - Synchronous: REST + JSON for operations that require immediate responses.
+    - Asynchronous: ActiveMQ message topics for order and order-item status change events.
+    - Real-time push: WebSocket topics for kitchen/tablet updates.
+
+host: "api.orderup.local"
+basePath: "/api/v1"
 schemes:
-- "https"
-- "http"
+  - "https"
+  - "http"
+consumes:
+  - "application/json"
+produces:
+  - "application/json"
+tags:
+  - name: "menu"
+    description: "Menu and menu item management"
+  - name: "order"
+    description: "Order and order item operations"
+  - name: "order-status"
+    description: "Order and order-item status tracking"
+  - name: "payment"
+    description: "Payment registration and status"
+  - name: "notification"
+    description: "WebSocket notification operations"
+  - name: "health"
+    description: "Gateway/service health checks"
+
+x-api-gateway:
+  provider: "nginx"
+  routing:
+    - pathPrefix: "/api/v1/menu"
+      targetService: "menu-service"
+    - pathPrefix: "/api/v1/orders"
+      targetService: "order-service"
+    - pathPrefix: "/api/v1/order-status"
+      targetService: "order-status-tracking-service"
+    - pathPrefix: "/api/v1/payments"
+      targetService: "payment-service"
+    - pathPrefix: "/api/v1/notifications"
+      targetService: "order-notification-service"
+x-service-discovery:
+  provider: "consul"
+  description: "Services register and discover each other dynamically via Consul."
+x-async-messaging:
+  broker: "activemq"
+  topics:
+    - name: "order-item-status-changed"
+      payloadRef: "#/definitions/OrderItemStatusChangedEvent"
+      publisher: "order-status-tracking-service"
+      subscribers:
+        - "order-notification-service"
+    - name: "order-status-changed"
+      payloadRef: "#/definitions/OrderStatusChangedEvent"
+      publisher: "order-status-tracking-service"
+      subscribers:
+        - "order-notification-service"
+x-websocket:
+  endpoint: "/api/v1/notifications/ws"
+  topicPattern: "/topic/orders/{orderId}"
+  description: "Order Notification Service pushes real-time updates to clients subscribed to order-specific topics."
+
 paths:
-  /pet/{petId}/uploadImage:
-    post:
-      tags:
-      - "pet"
-      summary: "uploads an image"
-      description: ""
-      operationId: "uploadFile"
-      consumes:
-      - "multipart/form-data"
-      produces:
-      - "application/json"
-      parameters:
-      - name: "petId"
-        in: "path"
-        description: "ID of pet to update"
-        required: true
-        type: "integer"
-        format: "int64"
-      - name: "additionalMetadata"
-        in: "formData"
-        description: "Additional data to pass to server"
-        required: false
-        type: "string"
-      - name: "file"
-        in: "formData"
-        description: "file to upload"
-        required: false
-        type: "file"
-      responses:
-        200:
-          description: "successful operation"
-          schema:
-            $ref: "#/definitions/ApiResponse"
-      security:
-      - petstore_auth:
-        - "write:pets"
-        - "read:pets"
-  /pet:
-    post:
-      tags:
-      - "pet"
-      summary: "Add a new pet to the store"
-      description: ""
-      operationId: "addPet"
-      consumes:
-      - "application/json"
-      - "application/xml"
-      produces:
-      - "application/json"
-      - "application/xml"
-      parameters:
-      - in: "body"
-        name: "body"
-        description: "Pet object that needs to be added to the store"
-        required: true
-        schema:
-          $ref: "#/definitions/Pet"
-      responses:
-        405:
-          description: "Invalid input"
-      security:
-      - petstore_auth:
-        - "write:pets"
-        - "read:pets"
-    put:
-      tags:
-      - "pet"
-      summary: "Update an existing pet"
-      description: ""
-      operationId: "updatePet"
-      consumes:
-      - "application/json"
-      - "application/xml"
-      produces:
-      - "application/json"
-      - "application/xml"
-      parameters:
-      - in: "body"
-        name: "body"
-        description: "Pet object that needs to be added to the store"
-        required: true
-        schema:
-          $ref: "#/definitions/Pet"
-      responses:
-        400:
-          description: "Invalid ID supplied"
-        404:
-          description: "Pet not found"
-        405:
-          description: "Validation exception"
-      security:
-      - petstore_auth:
-        - "write:pets"
-        - "read:pets"
-  /pet/findByStatus:
+  /menu/menus:
     get:
       tags:
-      - "pet"
-      summary: "Finds Pets by status"
-      description: "Multiple status values can be provided with comma separated strings"
-      operationId: "findPetsByStatus"
-      produces:
-      - "application/json"
-      - "application/xml"
+        - "menu"
+      summary: "List menus"
+      operationId: "listMenus"
       parameters:
-      - name: "status"
-        in: "query"
-        description: "Status values that need to be considered for filter"
-        required: true
-        type: "array"
-        items:
+        - name: "active"
+          in: "query"
+          required: false
+          type: "boolean"
+          description: "Filter only active menus"
+      responses:
+        200:
+          description: "Menus returned"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/Menu"
+    post:
+      tags:
+        - "menu"
+      summary: "Create a menu"
+      operationId: "createMenu"
+      parameters:
+        - in: "body"
+          name: "body"
+          required: true
+          schema:
+            $ref: "#/definitions/MenuCreateRequest"
+      responses:
+        201:
+          description: "Menu created"
+          schema:
+            $ref: "#/definitions/Menu"
+
+  /menu/menus/{menuId}:
+    get:
+      tags:
+        - "menu"
+      summary: "Get menu by ID"
+      operationId: "getMenuById"
+      parameters:
+        - $ref: "#/parameters/MenuIdPathParam"
+      responses:
+        200:
+          description: "Menu returned"
+          schema:
+            $ref: "#/definitions/Menu"
+        404:
+          $ref: "#/responses/NotFound"
+    put:
+      tags:
+        - "menu"
+      summary: "Update menu"
+      operationId: "updateMenu"
+      parameters:
+        - $ref: "#/parameters/MenuIdPathParam"
+        - in: "body"
+          name: "body"
+          required: true
+          schema:
+            $ref: "#/definitions/MenuUpdateRequest"
+      responses:
+        200:
+          description: "Menu updated"
+          schema:
+            $ref: "#/definitions/Menu"
+        404:
+          $ref: "#/responses/NotFound"
+    delete:
+      tags:
+        - "menu"
+      summary: "Delete menu"
+      operationId: "deleteMenu"
+      parameters:
+        - $ref: "#/parameters/MenuIdPathParam"
+      responses:
+        204:
+          description: "Menu deleted"
+        404:
+          $ref: "#/responses/NotFound"
+
+  /menu/menus/{menuId}/items:
+    get:
+      tags:
+        - "menu"
+      summary: "List menu items for a menu"
+      operationId: "listMenuItems"
+      parameters:
+        - $ref: "#/parameters/MenuIdPathParam"
+        - name: "available"
+          in: "query"
+          required: false
+          type: "boolean"
+      responses:
+        200:
+          description: "Menu items returned"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/MenuItem"
+        404:
+          $ref: "#/responses/NotFound"
+    post:
+      tags:
+        - "menu"
+      summary: "Create menu item"
+      operationId: "createMenuItem"
+      parameters:
+        - $ref: "#/parameters/MenuIdPathParam"
+        - in: "body"
+          name: "body"
+          required: true
+          schema:
+            $ref: "#/definitions/MenuItemCreateRequest"
+      responses:
+        201:
+          description: "Menu item created"
+          schema:
+            $ref: "#/definitions/MenuItem"
+        404:
+          $ref: "#/responses/NotFound"
+
+  /menu/items/{menuItemId}:
+    get:
+      tags:
+        - "menu"
+      summary: "Get menu item by ID"
+      operationId: "getMenuItemById"
+      parameters:
+        - $ref: "#/parameters/MenuItemIdPathParam"
+      responses:
+        200:
+          description: "Menu item returned"
+          schema:
+            $ref: "#/definitions/MenuItem"
+        404:
+          $ref: "#/responses/NotFound"
+    put:
+      tags:
+        - "menu"
+      summary: "Update menu item"
+      operationId: "updateMenuItem"
+      parameters:
+        - $ref: "#/parameters/MenuItemIdPathParam"
+        - in: "body"
+          name: "body"
+          required: true
+          schema:
+            $ref: "#/definitions/MenuItemUpdateRequest"
+      responses:
+        200:
+          description: "Menu item updated"
+          schema:
+            $ref: "#/definitions/MenuItem"
+        404:
+          $ref: "#/responses/NotFound"
+    delete:
+      tags:
+        - "menu"
+      summary: "Delete menu item"
+      operationId: "deleteMenuItem"
+      parameters:
+        - $ref: "#/parameters/MenuItemIdPathParam"
+      responses:
+        204:
+          description: "Menu item deleted"
+        404:
+          $ref: "#/responses/NotFound"
+
+  /orders:
+    get:
+      tags:
+        - "order"
+      summary: "List orders"
+      operationId: "listOrders"
+      parameters:
+        - name: "source"
+          in: "query"
+          required: false
           type: "string"
           enum:
-          - "available"
-          - "pending"
-          - "sold"
-          default: "available"
-        collectionFormat: "multi"
-      responses:
-        200:
-          description: "successful operation"
-          schema:
-            type: "array"
-            items:
-              $ref: "#/definitions/Pet"
-        400:
-          description: "Invalid status value"
-      security:
-      - petstore_auth:
-        - "write:pets"
-        - "read:pets"
-  /pet/findByTags:
-    get:
-      tags:
-      - "pet"
-      summary: "Finds Pets by tags"
-      description: "Multiple tags can be provided with comma separated strings. Use\
-        \ tag1, tag2, tag3 for testing."
-      operationId: "findPetsByTags"
-      produces:
-      - "application/json"
-      - "application/xml"
-      parameters:
-      - name: "tags"
-        in: "query"
-        description: "Tags to filter by"
-        required: true
-        type: "array"
-        items:
+            - "TABLET"
+            - "WAITER"
+            - "KIOSK"
+            - "WEB"
+        - name: "status"
+          in: "query"
+          required: false
           type: "string"
-        collectionFormat: "multi"
+          enum:
+            - "PLACED"
+            - "IN_PREPARATION"
+            - "READY"
+            - "SERVED"
+            - "CANCELLED"
       responses:
         200:
-          description: "successful operation"
+          description: "Orders returned"
           schema:
             type: "array"
             items:
-              $ref: "#/definitions/Pet"
-        400:
-          description: "Invalid tag value"
-      security:
-      - petstore_auth:
-        - "write:pets"
-        - "read:pets"
-      deprecated: true
-  /pet/{petId}:
-    get:
+              $ref: "#/definitions/Order"
+    post:
       tags:
-      - "pet"
-      summary: "Find pet by ID"
-      description: "Returns a single pet"
-      operationId: "getPetById"
-      produces:
-      - "application/json"
-      - "application/xml"
+        - "order"
+      summary: "Create order"
+      operationId: "createOrder"
       parameters:
-      - name: "petId"
-        in: "path"
-        description: "ID of pet to return"
-        required: true
-        type: "integer"
-        format: "int64"
-      responses:
-        200:
-          description: "successful operation"
+        - in: "body"
+          name: "body"
+          required: true
           schema:
-            $ref: "#/definitions/Pet"
-        400:
-          description: "Invalid ID supplied"
-        404:
-          description: "Pet not found"
-      security:
-      - api_key: []
-    post:
-      tags:
-      - "pet"
-      summary: "Updates a pet in the store with form data"
-      description: ""
-      operationId: "updatePetWithForm"
-      consumes:
-      - "application/x-www-form-urlencoded"
-      produces:
-      - "application/json"
-      - "application/xml"
-      parameters:
-      - name: "petId"
-        in: "path"
-        description: "ID of pet that needs to be updated"
-        required: true
-        type: "integer"
-        format: "int64"
-      - name: "name"
-        in: "formData"
-        description: "Updated name of the pet"
-        required: false
-        type: "string"
-      - name: "status"
-        in: "formData"
-        description: "Updated status of the pet"
-        required: false
-        type: "string"
+            $ref: "#/definitions/OrderCreateRequest"
       responses:
-        405:
-          description: "Invalid input"
-      security:
-      - petstore_auth:
-        - "write:pets"
-        - "read:pets"
-    delete:
-      tags:
-      - "pet"
-      summary: "Deletes a pet"
-      description: ""
-      operationId: "deletePet"
-      produces:
-      - "application/json"
-      - "application/xml"
-      parameters:
-      - name: "api_key"
-        in: "header"
-        required: false
-        type: "string"
-      - name: "petId"
-        in: "path"
-        description: "Pet id to delete"
-        required: true
-        type: "integer"
-        format: "int64"
-      responses:
-        400:
-          description: "Invalid ID supplied"
-        404:
-          description: "Pet not found"
-      security:
-      - petstore_auth:
-        - "write:pets"
-        - "read:pets"
-  /store/order:
-    post:
-      tags:
-      - "store"
-      summary: "Place an order for a pet"
-      description: ""
-      operationId: "placeOrder"
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      - "application/xml"
-      parameters:
-      - in: "body"
-        name: "body"
-        description: "order placed for purchasing the pet"
-        required: true
-        schema:
-          $ref: "#/definitions/Order"
-      responses:
-        200:
-          description: "successful operation"
+        201:
+          description: "Order created"
           schema:
             $ref: "#/definitions/Order"
-        400:
-          description: "Invalid Order"
-  /store/order/{orderId}:
+
+  /orders/{orderId}:
     get:
       tags:
-      - "store"
-      summary: "Find purchase order by ID"
-      description: "For valid response try integer IDs with value >= 1 and <= 10.\
-        \ Other values will generated exceptions"
+        - "order"
+      summary: "Get order by ID"
       operationId: "getOrderById"
-      produces:
-      - "application/json"
-      - "application/xml"
       parameters:
-      - name: "orderId"
-        in: "path"
-        description: "ID of pet that needs to be fetched"
-        required: true
-        type: "integer"
-        maximum: 10
-        minimum: 1
-        format: "int64"
+        - $ref: "#/parameters/OrderIdPathParam"
       responses:
         200:
-          description: "successful operation"
+          description: "Order returned"
           schema:
             $ref: "#/definitions/Order"
-        400:
-          description: "Invalid ID supplied"
         404:
-          description: "Order not found"
-    delete:
-      tags:
-      - "store"
-      summary: "Delete purchase order by ID"
-      description: "For valid response try integer IDs with positive integer value.\
-        \ Negative or non-integer values will generate API errors"
-      operationId: "deleteOrder"
-      produces:
-      - "application/json"
-      - "application/xml"
-      parameters:
-      - name: "orderId"
-        in: "path"
-        description: "ID of the order that needs to be deleted"
-        required: true
-        type: "integer"
-        minimum: 1
-        format: "int64"
-      responses:
-        400:
-          description: "Invalid ID supplied"
-        404:
-          description: "Order not found"
-  /store/inventory:
-    get:
-      tags:
-      - "store"
-      summary: "Returns pet inventories by status"
-      description: "Returns a map of status codes to quantities"
-      operationId: "getInventory"
-      produces:
-      - "application/json"
-      parameters: []
-      responses:
-        200:
-          description: "successful operation"
-          schema:
-            type: "object"
-            additionalProperties:
-              type: "integer"
-              format: "int32"
-      security:
-      - api_key: []
-  /user/createWithArray:
+          $ref: "#/responses/NotFound"
+
+  /orders/{orderId}/items:
     post:
       tags:
-      - "user"
-      summary: "Creates list of users with given input array"
-      description: ""
-      operationId: "createUsersWithArrayInput"
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      - "application/xml"
+        - "order"
+      summary: "Add item to order"
+      operationId: "addOrderItem"
       parameters:
-      - in: "body"
-        name: "body"
-        description: "List of user object"
-        required: true
-        schema:
-          type: "array"
-          items:
-            $ref: "#/definitions/User"
-      responses:
-        default:
-          description: "successful operation"
-  /user/createWithList:
-    post:
-      tags:
-      - "user"
-      summary: "Creates list of users with given input array"
-      description: ""
-      operationId: "createUsersWithListInput"
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      - "application/xml"
-      parameters:
-      - in: "body"
-        name: "body"
-        description: "List of user object"
-        required: true
-        schema:
-          type: "array"
-          items:
-            $ref: "#/definitions/User"
-      responses:
-        default:
-          description: "successful operation"
-  /user/{username}:
-    get:
-      tags:
-      - "user"
-      summary: "Get user by user name"
-      description: ""
-      operationId: "getUserByName"
-      produces:
-      - "application/json"
-      - "application/xml"
-      parameters:
-      - name: "username"
-        in: "path"
-        description: "The name that needs to be fetched. Use user1 for testing. "
-        required: true
-        type: "string"
-      responses:
-        200:
-          description: "successful operation"
+        - $ref: "#/parameters/OrderIdPathParam"
+        - in: "body"
+          name: "body"
+          required: true
           schema:
-            $ref: "#/definitions/User"
-        400:
-          description: "Invalid username supplied"
+            $ref: "#/definitions/OrderItemCreateRequest"
+      responses:
+        201:
+          description: "Order item added"
+          schema:
+            $ref: "#/definitions/OrderItem"
         404:
-          description: "User not found"
+          $ref: "#/responses/NotFound"
+
+  /orders/{orderId}/items/{orderItemId}:
     put:
       tags:
-      - "user"
-      summary: "Updated user"
-      description: "This can only be done by the logged in user."
-      operationId: "updateUser"
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      - "application/xml"
+        - "order"
+      summary: "Update quantity of an order item"
+      operationId: "updateOrderItem"
       parameters:
-      - name: "username"
-        in: "path"
-        description: "name that need to be updated"
-        required: true
-        type: "string"
-      - in: "body"
-        name: "body"
-        description: "Updated user object"
-        required: true
-        schema:
-          $ref: "#/definitions/User"
-      responses:
-        400:
-          description: "Invalid user supplied"
-        404:
-          description: "User not found"
-    delete:
-      tags:
-      - "user"
-      summary: "Delete user"
-      description: "This can only be done by the logged in user."
-      operationId: "deleteUser"
-      produces:
-      - "application/json"
-      - "application/xml"
-      parameters:
-      - name: "username"
-        in: "path"
-        description: "The name that needs to be deleted"
-        required: true
-        type: "string"
-      responses:
-        400:
-          description: "Invalid username supplied"
-        404:
-          description: "User not found"
-  /user/login:
-    get:
-      tags:
-      - "user"
-      summary: "Logs user into the system"
-      description: ""
-      operationId: "loginUser"
-      produces:
-      - "application/json"
-      - "application/xml"
-      parameters:
-      - name: "username"
-        in: "query"
-        description: "The user name for login"
-        required: true
-        type: "string"
-      - name: "password"
-        in: "query"
-        description: "The password for login in clear text"
-        required: true
-        type: "string"
+        - $ref: "#/parameters/OrderIdPathParam"
+        - $ref: "#/parameters/OrderItemIdPathParam"
+        - in: "body"
+          name: "body"
+          required: true
+          schema:
+            $ref: "#/definitions/OrderItemUpdateRequest"
       responses:
         200:
-          description: "successful operation"
-          headers:
-            X-Expires-After:
-              type: "string"
-              format: "date-time"
-              description: "date in UTC when token expires"
-            X-Rate-Limit:
-              type: "integer"
-              format: "int32"
-              description: "calls per hour allowed by the user"
+          description: "Order item updated"
           schema:
-            type: "string"
-        400:
-          description: "Invalid username/password supplied"
-  /user/logout:
+            $ref: "#/definitions/OrderItem"
+        404:
+          $ref: "#/responses/NotFound"
+    delete:
+      tags:
+        - "order"
+      summary: "Remove item from order"
+      operationId: "deleteOrderItem"
+      parameters:
+        - $ref: "#/parameters/OrderIdPathParam"
+        - $ref: "#/parameters/OrderItemIdPathParam"
+      responses:
+        204:
+          description: "Order item removed"
+        404:
+          $ref: "#/responses/NotFound"
+
+  /payments/orders/{orderId}:
     get:
       tags:
-      - "user"
-      summary: "Logs out current logged in user session"
-      description: ""
-      operationId: "logoutUser"
-      produces:
-      - "application/json"
-      - "application/xml"
-      parameters: []
+        - "payment"
+      summary: "Get payment by order ID"
+      operationId: "getPaymentByOrderId"
+      parameters:
+        - $ref: "#/parameters/OrderIdPathParam"
       responses:
-        default:
-          description: "successful operation"
-  /user:
+        200:
+          description: "Payment returned"
+          schema:
+            $ref: "#/definitions/Payment"
+        404:
+          $ref: "#/responses/NotFound"
     post:
       tags:
-      - "user"
-      summary: "Create user"
-      description: "This can only be done by the logged in user."
-      operationId: "createUser"
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      - "application/xml"
+        - "payment"
+      summary: "Register payment for order"
+      operationId: "createPayment"
       parameters:
-      - in: "body"
-        name: "body"
-        description: "Created user object"
-        required: true
-        schema:
-          $ref: "#/definitions/User"
+        - $ref: "#/parameters/OrderIdPathParam"
+        - in: "body"
+          name: "body"
+          required: true
+          schema:
+            $ref: "#/definitions/PaymentCreateRequest"
       responses:
-        default:
-          description: "successful operation"
+        201:
+          description: "Payment created"
+          schema:
+            $ref: "#/definitions/Payment"
+        404:
+          $ref: "#/responses/NotFound"
+
+  /order-status/orders/{orderId}/history:
+    get:
+      tags:
+        - "order-status"
+      summary: "Get order status history"
+      operationId: "getOrderStatusHistory"
+      parameters:
+        - $ref: "#/parameters/OrderIdPathParam"
+      responses:
+        200:
+          description: "Order status history returned"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/OrderStatusHistory"
+        404:
+          $ref: "#/responses/NotFound"
+    post:
+      tags:
+        - "order-status"
+      summary: "Append order status event"
+      description: "Also publishes OrderStatusChangedEvent to ActiveMQ topic order-status-changed."
+      operationId: "appendOrderStatus"
+      parameters:
+        - $ref: "#/parameters/OrderIdPathParam"
+        - in: "body"
+          name: "body"
+          required: true
+          schema:
+            $ref: "#/definitions/OrderStatusHistoryCreateRequest"
+      responses:
+        201:
+          description: "Order status event appended"
+          schema:
+            $ref: "#/definitions/OrderStatusHistory"
+        404:
+          $ref: "#/responses/NotFound"
+
+  /order-status/order-items/{orderItemId}/history:
+    get:
+      tags:
+        - "order-status"
+      summary: "Get order item status history"
+      operationId: "getOrderItemStatusHistory"
+      parameters:
+        - $ref: "#/parameters/OrderItemIdPathParam"
+      responses:
+        200:
+          description: "Order item status history returned"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/OrderItemStatusHistory"
+        404:
+          $ref: "#/responses/NotFound"
+    post:
+      tags:
+        - "order-status"
+      summary: "Append order item status event"
+      description: "Also publishes OrderItemStatusChangedEvent to ActiveMQ topic order-item-status-changed."
+      operationId: "appendOrderItemStatus"
+      parameters:
+        - $ref: "#/parameters/OrderItemIdPathParam"
+        - in: "body"
+          name: "body"
+          required: true
+          schema:
+            $ref: "#/definitions/OrderItemStatusHistoryCreateRequest"
+      responses:
+        201:
+          description: "Order item status event appended"
+          schema:
+            $ref: "#/definitions/OrderItemStatusHistory"
+        404:
+          $ref: "#/responses/NotFound"
+
+  /notifications/ws:
+    get:
+      tags:
+        - "notification"
+      summary: "WebSocket handshake endpoint"
+      description: |
+        HTTP upgrade endpoint used by clients to establish WebSocket sessions.
+        After connecting, clients subscribe to destination /topic/orders/{orderId}
+        to receive order-specific real-time status updates.
+      operationId: "websocketHandshake"
+      produces:
+        - "application/json"
+      responses:
+        101:
+          description: "Switching Protocols"
+        426:
+          description: "Upgrade Required"
+
+  /notifications/orders/{orderId}/subscriptions:
+    get:
+      tags:
+        - "notification"
+      summary: "Get active subscription count for order topic"
+      operationId: "getOrderTopicSubscriptions"
+      parameters:
+        - $ref: "#/parameters/OrderIdPathParam"
+      responses:
+        200:
+          description: "Subscription information returned"
+          schema:
+            $ref: "#/definitions/OrderTopicSubscriptionInfo"
+
+  /health:
+    get:
+      tags:
+        - "health"
+      summary: "Gateway health check"
+      operationId: "healthCheck"
+      responses:
+        200:
+          description: "Gateway is healthy"
+          schema:
+            $ref: "#/definitions/HealthStatus"
+
+parameters:
+  MenuIdPathParam:
+    name: "menuId"
+    in: "path"
+    required: true
+    type: "string"
+    format: "uuid"
+  MenuItemIdPathParam:
+    name: "menuItemId"
+    in: "path"
+    required: true
+    type: "string"
+    format: "uuid"
+  OrderIdPathParam:
+    name: "orderId"
+    in: "path"
+    required: true
+    type: "string"
+    format: "uuid"
+  OrderItemIdPathParam:
+    name: "orderItemId"
+    in: "path"
+    required: true
+    type: "string"
+    format: "uuid"
+
+responses:
+  NotFound:
+    description: "Entity not found"
+    schema:
+      $ref: "#/definitions/ErrorResponse"
+
 securityDefinitions:
-  api_key:
+  bearerAuth:
     type: "apiKey"
-    name: "api_key"
+    name: "Authorization"
     in: "header"
-  petstore_auth:
-    type: "oauth2"
-    authorizationUrl: "https://petstore.swagger.io/oauth/authorize"
-    flow: "implicit"
-    scopes:
-      read:pets: "read your pets"
-      write:pets: "modify pets in your account"
+
+security:
+  - bearerAuth: []
+
 definitions:
-  ApiResponse:
-    type: "object"
-    properties:
-      code:
-        type: "integer"
-        format: "int32"
-      type:
-        type: "string"
-      message:
-        type: "string"
-  Category:
-    type: "object"
-    properties:
-      id:
-        type: "integer"
-        format: "int64"
-      name:
-        type: "string"
-    xml:
-      name: "Category"
-  Pet:
+  Menu:
     type: "object"
     required:
-    - "name"
-    - "photoUrls"
+      - "id"
+      - "name"
+      - "active"
     properties:
       id:
-        type: "integer"
-        format: "int64"
-      category:
-        $ref: "#/definitions/Category"
+        type: "string"
+        format: "uuid"
       name:
         type: "string"
-        example: "doggie"
-      photoUrls:
-        type: "array"
-        xml:
-          wrapped: true
-        items:
-          type: "string"
-          xml:
-            name: "photoUrl"
-      tags:
-        type: "array"
-        xml:
-          wrapped: true
-        items:
-          xml:
-            name: "tag"
-          $ref: "#/definitions/Tag"
-      status:
+      active:
+        type: "boolean"
+
+  MenuCreateRequest:
+    type: "object"
+    required:
+      - "name"
+    properties:
+      name:
         type: "string"
-        description: "pet status in the store"
-        enum:
-        - "available"
-        - "pending"
-        - "sold"
-    xml:
-      name: "Pet"
-  Tag:
+      active:
+        type: "boolean"
+        default: true
+
+  MenuUpdateRequest:
     type: "object"
     properties:
-      id:
-        type: "integer"
-        format: "int64"
       name:
         type: "string"
-    xml:
-      name: "Tag"
+      active:
+        type: "boolean"
+
+  MenuItem:
+    type: "object"
+    required:
+      - "id"
+      - "name"
+      - "price"
+      - "productId"
+      - "available"
+    properties:
+      id:
+        type: "string"
+        format: "uuid"
+      name:
+        type: "string"
+      description:
+        type: "string"
+      imagePath:
+        type: "string"
+      price:
+        type: "number"
+        format: "double"
+      productId:
+        type: "string"
+        format: "uuid"
+      available:
+        type: "boolean"
+
+  MenuItemCreateRequest:
+    type: "object"
+    required:
+      - "name"
+      - "price"
+      - "productId"
+    properties:
+      name:
+        type: "string"
+      description:
+        type: "string"
+      imagePath:
+        type: "string"
+      price:
+        type: "number"
+        format: "double"
+      productId:
+        type: "string"
+        format: "uuid"
+      available:
+        type: "boolean"
+        default: true
+
+  MenuItemUpdateRequest:
+    type: "object"
+    properties:
+      name:
+        type: "string"
+      description:
+        type: "string"
+      imagePath:
+        type: "string"
+      price:
+        type: "number"
+        format: "double"
+      available:
+        type: "boolean"
+
   Order:
     type: "object"
+    required:
+      - "id"
+      - "createdAt"
+      - "totalPrice"
+      - "source"
     properties:
       id:
-        type: "integer"
-        format: "int64"
-      petId:
-        type: "integer"
-        format: "int64"
+        type: "string"
+        format: "uuid"
+      createdAt:
+        type: "string"
+        format: "date-time"
+      totalPrice:
+        type: "number"
+        format: "double"
+      source:
+        type: "string"
+        enum:
+          - "TABLET"
+          - "WAITER"
+          - "KIOSK"
+          - "WEB"
+      items:
+        type: "array"
+        items:
+          $ref: "#/definitions/OrderItem"
+
+  OrderCreateRequest:
+    type: "object"
+    required:
+      - "source"
+      - "items"
+    properties:
+      source:
+        type: "string"
+        enum:
+          - "TABLET"
+          - "WAITER"
+          - "KIOSK"
+          - "WEB"
+      items:
+        type: "array"
+        minItems: 1
+        items:
+          $ref: "#/definitions/OrderItemCreateRequest"
+
+  OrderItem:
+    type: "object"
+    required:
+      - "id"
+      - "orderId"
+      - "menuItemId"
+      - "quantity"
+      - "price"
+    properties:
+      id:
+        type: "string"
+        format: "uuid"
+      orderId:
+        type: "string"
+        format: "uuid"
+      menuItemId:
+        type: "string"
+        format: "uuid"
       quantity:
         type: "integer"
         format: "int32"
-      shipDate:
-        type: "string"
-        format: "date-time"
-      status:
-        type: "string"
-        description: "Order Status"
-        enum:
-        - "placed"
-        - "approved"
-        - "delivered"
-      complete:
-        type: "boolean"
-    xml:
-      name: "Order"
-  User:
+        minimum: 1
+      price:
+        type: "number"
+        format: "double"
+
+  OrderItemCreateRequest:
     type: "object"
+    required:
+      - "menuItemId"
+      - "quantity"
+      - "price"
     properties:
-      id:
-        type: "integer"
-        format: "int64"
-      username:
+      menuItemId:
         type: "string"
-      firstName:
-        type: "string"
-      lastName:
-        type: "string"
-      email:
-        type: "string"
-      password:
-        type: "string"
-      phone:
-        type: "string"
-      userStatus:
+        format: "uuid"
+      quantity:
         type: "integer"
         format: "int32"
-        description: "User Status"
-    xml:
-      name: "User"
-externalDocs:
-  description: "Find out more about Swagger"
-  url: "http://swagger.io"
+        minimum: 1
+      price:
+        type: "number"
+        format: "double"
+
+  OrderItemUpdateRequest:
+    type: "object"
+    required:
+      - "quantity"
+    properties:
+      quantity:
+        type: "integer"
+        format: "int32"
+        minimum: 1
+
+  OrderStatusHistory:
+    type: "object"
+    required:
+      - "id"
+      - "orderId"
+      - "status"
+      - "timestamp"
+      - "updatedBy"
+    properties:
+      id:
+        type: "string"
+        format: "uuid"
+      orderId:
+        type: "string"
+        format: "uuid"
+      status:
+        type: "string"
+        enum:
+          - "PLACED"
+          - "IN_PREPARATION"
+          - "READY"
+          - "SERVED"
+          - "CANCELLED"
+      timestamp:
+        type: "string"
+        format: "date-time"
+      updatedBy:
+        type: "string"
+
+  OrderStatusHistoryCreateRequest:
+    type: "object"
+    required:
+      - "status"
+      - "updatedBy"
+    properties:
+      status:
+        type: "string"
+        enum:
+          - "PLACED"
+          - "IN_PREPARATION"
+          - "READY"
+          - "SERVED"
+          - "CANCELLED"
+      updatedBy:
+        type: "string"
+
+  OrderItemStatusHistory:
+    type: "object"
+    required:
+      - "id"
+      - "orderItemId"
+      - "status"
+      - "timestamp"
+      - "updatedBy"
+    properties:
+      id:
+        type: "string"
+        format: "uuid"
+      orderItemId:
+        type: "string"
+        format: "uuid"
+      status:
+        type: "string"
+        enum:
+          - "PLACED"
+          - "IN_PREPARATION"
+          - "READY"
+          - "SERVED"
+          - "CANCELLED"
+      timestamp:
+        type: "string"
+        format: "date-time"
+      updatedBy:
+        type: "string"
+
+  OrderItemStatusHistoryCreateRequest:
+    type: "object"
+    required:
+      - "status"
+      - "updatedBy"
+    properties:
+      status:
+        type: "string"
+        enum:
+          - "PLACED"
+          - "IN_PREPARATION"
+          - "READY"
+          - "SERVED"
+          - "CANCELLED"
+      updatedBy:
+        type: "string"
+
+  Payment:
+    type: "object"
+    required:
+      - "id"
+      - "orderId"
+      - "amount"
+      - "status"
+      - "method"
+      - "createdAt"
+    properties:
+      id:
+        type: "string"
+        format: "uuid"
+      orderId:
+        type: "string"
+        format: "uuid"
+      amount:
+        type: "number"
+        format: "double"
+      status:
+        type: "string"
+        enum:
+          - "PENDING"
+          - "AUTHORIZED"
+          - "PAID"
+          - "FAILED"
+          - "REFUNDED"
+      method:
+        type: "string"
+        example: "CARD"
+      createdAt:
+        type: "string"
+        format: "date-time"
+
+  PaymentCreateRequest:
+    type: "object"
+    required:
+      - "amount"
+      - "method"
+    properties:
+      amount:
+        type: "number"
+        format: "double"
+      method:
+        type: "string"
+        example: "CARD"
+
+  OrderItemStatusChangedEvent:
+    type: "object"
+    required:
+      - "orderId"
+      - "orderItemId"
+      - "newStatus"
+      - "timestamp"
+    properties:
+      orderId:
+        type: "string"
+        format: "uuid"
+      orderItemId:
+        type: "string"
+        format: "uuid"
+      newStatus:
+        type: "string"
+        enum:
+          - "PLACED"
+          - "IN_PREPARATION"
+          - "READY"
+          - "SERVED"
+          - "CANCELLED"
+      timestamp:
+        type: "string"
+        format: "date-time"
+
+  OrderStatusChangedEvent:
+    type: "object"
+    required:
+      - "orderId"
+      - "newStatus"
+      - "timestamp"
+    properties:
+      orderId:
+        type: "string"
+        format: "uuid"
+      newStatus:
+        type: "string"
+        enum:
+          - "PLACED"
+          - "IN_PREPARATION"
+          - "READY"
+          - "SERVED"
+          - "CANCELLED"
+      timestamp:
+        type: "string"
+        format: "date-time"
+
+  OrderTopicSubscriptionInfo:
+    type: "object"
+    required:
+      - "orderId"
+      - "subscriberCount"
+    properties:
+      orderId:
+        type: "string"
+        format: "uuid"
+      subscriberCount:
+        type: "integer"
+        format: "int32"
+        minimum: 0
+
+  HealthStatus:
+    type: "object"
+    required:
+      - "status"
+      - "timestamp"
+    properties:
+      status:
+        type: "string"
+        example: "UP"
+      timestamp:
+        type: "string"
+        format: "date-time"
+
+  ErrorResponse:
+    type: "object"
+    required:
+      - "code"
+      - "message"
+      - "timestamp"
+    properties:
+      code:
+        type: "string"
+      message:
+        type: "string"
+      timestamp:
+        type: "string"
+        format: "date-time"
