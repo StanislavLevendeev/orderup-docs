@@ -15,7 +15,7 @@ info:
     - Real-time push: WebSocket topics for kitchen/tablet updates.
 
 host: "api.orderup.local"
-basePath: "/api/v1"
+basePath: "/api"
 schemes:
   - "https"
   - "http"
@@ -25,7 +25,9 @@ produces:
   - "application/json"
 tags:
   - name: "menu"
-    description: "Menu and menu item management"
+    description: "Menu management"
+  - name: "menu-item"
+    description: "Menu item management"
   - name: "order"
     description: "Order and order item operations"
   - name: "order-status"
@@ -34,45 +36,9 @@ tags:
     description: "Payment registration and status"
   - name: "notification"
     description: "WebSocket notification operations"
-  - name: "health"
-    description: "Gateway/service health checks"
-
-x-api-gateway:
-  provider: "nginx"
-  routing:
-    - pathPrefix: "/api/v1/menu"
-      targetService: "menu-service"
-    - pathPrefix: "/api/v1/orders"
-      targetService: "order-service"
-    - pathPrefix: "/api/v1/order-status"
-      targetService: "order-status-tracking-service"
-    - pathPrefix: "/api/v1/payments"
-      targetService: "payment-service"
-    - pathPrefix: "/api/v1/notifications"
-      targetService: "order-notification-service"
-x-service-discovery:
-  provider: "consul"
-  description: "Services register and discover each other dynamically via Consul."
-x-async-messaging:
-  broker: "activemq"
-  topics:
-    - name: "order-item-status-changed"
-      payloadRef: "#/definitions/OrderItemStatusChangedEvent"
-      publisher: "order-status-tracking-service"
-      subscribers:
-        - "order-notification-service"
-    - name: "order-status-changed"
-      payloadRef: "#/definitions/OrderStatusChangedEvent"
-      publisher: "order-status-tracking-service"
-      subscribers:
-        - "order-notification-service"
-x-websocket:
-  endpoint: "/api/v1/notifications/ws"
-  topicPattern: "/topic/orders/{orderId}"
-  description: "Order Notification Service pushes real-time updates to clients subscribed to order-specific topics."
 
 paths:
-  /menu:
+  /menus:
     get:
       tags:
         - "menu"
@@ -108,7 +74,7 @@ paths:
           schema:
             $ref: "#/definitions/Menu"
 
-  /menu/{menuId}:
+  /menus/{menuId}:
     get:
       tags:
         - "menu"
@@ -155,10 +121,10 @@ paths:
         404:
           $ref: "#/responses/NotFound"
 
-  /menu/{menuId}/item:
+  /menus/{menuId}/items:
     get:
       tags:
-        - "menu"
+        - "menu-item"
       summary: "List menu items for a menu"
       operationId: "listMenuItems"
       parameters:
@@ -178,7 +144,7 @@ paths:
           $ref: "#/responses/NotFound"
     post:
       tags:
-        - "menu"
+        - "menu-item"
       summary: "Create menu item"
       operationId: "createMenuItem"
       parameters:
@@ -196,13 +162,14 @@ paths:
         404:
           $ref: "#/responses/NotFound"
 
-  /menu/item/{menuItemId}:
+  /menus/{menuId}/items/{menuItemId}:
     get:
       tags:
-        - "menu"
+        - "menu-item"
       summary: "Get menu item by ID"
       operationId: "getMenuItemById"
       parameters:
+        - $ref: "#/parameters/MenuIdPathParam"
         - $ref: "#/parameters/MenuItemIdPathParam"
       responses:
         200:
@@ -213,10 +180,11 @@ paths:
           $ref: "#/responses/NotFound"
     put:
       tags:
-        - "menu"
+        - "menu-item"
       summary: "Update menu item"
       operationId: "updateMenuItem"
       parameters:
+        - $ref: "#/parameters/MenuIdPathParam"
         - $ref: "#/parameters/MenuItemIdPathParam"
         - in: "body"
           name: "body"
@@ -232,10 +200,11 @@ paths:
           $ref: "#/responses/NotFound"
     delete:
       tags:
-        - "menu"
+        - "menu-item"
       summary: "Delete menu item"
       operationId: "deleteMenuItem"
       parameters:
+        - $ref: "#/parameters/MenuIdPathParam"
         - $ref: "#/parameters/MenuItemIdPathParam"
       responses:
         204:
@@ -243,7 +212,7 @@ paths:
         404:
           $ref: "#/responses/NotFound"
 
-  /order:
+  /orders:
     get:
       tags:
         - "order"
@@ -257,24 +226,24 @@ paths:
           enum:
             - "TABLET"
             - "WAITER"
-            - "KIOSK"
             - "WEB"
         - name: "status"
           in: "query"
           required: false
           type: "string"
           enum:
-            - "PLACED"
-            - "IN_PREPARATION"
+            - "CREATED"
+            - "PREPARING"
             - "READY"
             - "SERVED"
             - "CANCELLED"
+            - "PAID"
       responses:
         200:
           description: "Orders returned"
           schema:
             type: "array"
-            item:
+            items:
               $ref: "#/definitions/Order"
     post:
       tags:
@@ -293,7 +262,7 @@ paths:
           schema:
             $ref: "#/definitions/Order"
 
-  /order/{orderId}:
+  /orders/{orderId}:
     get:
       tags:
         - "order"
@@ -309,7 +278,7 @@ paths:
         404:
           $ref: "#/responses/NotFound"
 
-  /order/{orderId}/item:
+  /orders/{orderId}/items:
     post:
       tags:
         - "order"
@@ -330,7 +299,7 @@ paths:
         404:
           $ref: "#/responses/NotFound"
 
-  /order/{orderId}/item/{orderItemId}:
+  /orders/{orderId}/items/{orderItemId}:
     put:
       tags:
         - "order"
@@ -365,7 +334,7 @@ paths:
         404:
           $ref: "#/responses/NotFound"
 
-  /order/status/{orderId}:
+  /orders/{orderId}/status:
     get:
       tags:
         - "order-status"
@@ -401,7 +370,7 @@ paths:
         404:
           $ref: "#/responses/NotFound"
 
-  /order/status/{orderId}/history:
+  /orders/{orderId}/status-history:
     get:
       tags:
         - "order-status"
@@ -439,13 +408,14 @@ paths:
         404:
           $ref: "#/responses/NotFound"
 
-  /order/item/{orderItemId}/status:
+  /orders/{orderId}/items/{orderItemId}/status:
     get:
       tags:
         - "order-status"
       summary: "Get the latest order item status"
       operationId: "getOrderItemStatus"
       parameters:
+        - $ref: "#/parameters/OrderIdPathParam"
         - $ref: "#/parameters/OrderItemIdPathParam"
       responses:
         200:
@@ -461,6 +431,7 @@ paths:
       description: "Also publishes OrderItemStatusChangedEvent to ActiveMQ topic order-item-status-changed."
       operationId: "appendOrderItemStatus"
       parameters:
+        - $ref: "#/parameters/OrderIdPathParam"
         - $ref: "#/parameters/OrderItemIdPathParam"
         - in: "body"
           name: "body"
@@ -475,13 +446,14 @@ paths:
         404:
           $ref: "#/responses/NotFound"
 
-  /order/item/{orderItemId}/status/history:
+  /orders/{orderId}/items/{orderItemId}/status-history:
     get:
       tags:
         - "order-status"
       summary: "Get the order item status history"
       operationId: "getOrderItemStatusHistory"
       parameters:
+        - $ref: "#/parameters/OrderIdPathParam"
         - $ref: "#/parameters/OrderItemIdPathParam"
       responses:
         200:
@@ -499,6 +471,7 @@ paths:
       description: "Also publishes OrderItemStatusChangedEvent to ActiveMQ topic order-item-status-changed."
       operationId: "appendOrderItemStatus"
       parameters:
+        - $ref: "#/parameters/OrderIdPathParam"
         - $ref: "#/parameters/OrderItemIdPathParam"
         - in: "body"
           name: "body"
@@ -513,7 +486,7 @@ paths:
         404:
           $ref: "#/responses/NotFound"
 
-  /payment/order/{orderId}:
+  /orders/{orderId}/payments:
     get:
       tags:
         - "payment"
@@ -548,7 +521,23 @@ paths:
         404:
           $ref: "#/responses/NotFound"
 
-  /notification/ws:
+  /payments/{paymentId}:
+    get:
+      tags:
+        - "payment"
+      summary: "Get payment by payment ID"
+      operationId: "getPaymentByPaymentId"
+      parameters:
+        - $ref: "#/parameters/PaymentIdPathParam"
+      responses:
+        200:
+          description: "Payment returned"
+          schema:
+            $ref: "#/definitions/Payment"
+        404:
+          $ref: "#/responses/NotFound"
+
+  /notifications/ws:
     get:
       tags:
         - "notification"
@@ -566,32 +555,6 @@ paths:
         426:
           description: "Upgrade Required"
 
-  /notification/order/{orderId}/subscription:
-    get:
-      tags:
-        - "notification"
-      summary: "Get active subscription count for order topic"
-      operationId: "getOrderTopicSubscriptions"
-      parameters:
-        - $ref: "#/parameters/OrderIdPathParam"
-      responses:
-        200:
-          description: "Subscription information returned"
-          schema:
-            $ref: "#/definitions/OrderTopicSubscriptionInfo"
-
-  /health:
-    get:
-      tags:
-        - "health"
-      summary: "Gateway health check"
-      operationId: "healthCheck"
-      responses:
-        200:
-          description: "Gateway is healthy"
-          schema:
-            $ref: "#/definitions/HealthStatus"
-
 parameters:
   MenuIdPathParam:
     name: "menuId"
@@ -607,6 +570,12 @@ parameters:
     format: "uuid"
   OrderIdPathParam:
     name: "orderId"
+    in: "path"
+    required: true
+    type: "string"
+    format: "uuid"
+  PaymentIdPathParam:
+    name: "paymentId"
     in: "path"
     required: true
     type: "string"
@@ -674,7 +643,6 @@ definitions:
       - "id"
       - "name"
       - "price"
-      - "productId"
       - "available"
     properties:
       id:
@@ -689,9 +657,6 @@ definitions:
       price:
         type: "number"
         format: "double"
-      productId:
-        type: "string"
-        format: "uuid"
       available:
         type: "boolean"
 
@@ -700,7 +665,6 @@ definitions:
     required:
       - "name"
       - "price"
-      - "productId"
     properties:
       name:
         type: "string"
@@ -711,9 +675,6 @@ definitions:
       price:
         type: "number"
         format: "double"
-      productId:
-        type: "string"
-        format: "uuid"
       available:
         type: "boolean"
         default: true
@@ -730,6 +691,7 @@ definitions:
       price:
         type: "number"
         format: "double"
+        minimum: 0
       available:
         type: "boolean"
 
@@ -738,7 +700,6 @@ definitions:
     required:
       - "id"
       - "createdAt"
-      - "totalPrice"
       - "source"
     properties:
       id:
@@ -747,9 +708,6 @@ definitions:
       createdAt:
         type: "string"
         format: "date-time"
-      totalPrice:
-        type: "number"
-        format: "double"
       source:
         type: "string"
         enum:
@@ -773,7 +731,6 @@ definitions:
         enum:
           - "TABLET"
           - "WAITER"
-          - "KIOSK"
           - "WEB"
       items:
         type: "array"
@@ -788,7 +745,6 @@ definitions:
       - "orderId"
       - "menuItemId"
       - "quantity"
-      - "price"
     properties:
       id:
         type: "string"
@@ -803,16 +759,12 @@ definitions:
         type: "integer"
         format: "int32"
         minimum: 1
-      price:
-        type: "number"
-        format: "double"
 
   OrderItemCreateRequest:
     type: "object"
     required:
       - "menuItemId"
       - "quantity"
-      - "price"
     properties:
       menuItemId:
         type: "string"
@@ -821,9 +773,6 @@ definitions:
         type: "integer"
         format: "int32"
         minimum: 1
-      price:
-        type: "number"
-        format: "double"
 
   OrderItemUpdateRequest:
     type: "object"
@@ -853,11 +802,12 @@ definitions:
       status:
         type: "string"
         enum:
-          - "PLACED"
-          - "IN_PREPARATION"
+          - "CREATED"
+          - "PREPARING"
           - "READY"
           - "SERVED"
           - "CANCELLED"
+          - "PAID"
       timestamp:
         type: "string"
         format: "date-time"
@@ -873,11 +823,12 @@ definitions:
       status:
         type: "string"
         enum:
-          - "PLACED"
-          - "IN_PREPARATION"
+          - "CREATED"
+          - "PREPARING"
           - "READY"
           - "SERVED"
           - "CANCELLED"
+          - "PAID"
       updatedBy:
         type: "string"
 
@@ -899,8 +850,8 @@ definitions:
       status:
         type: "string"
         enum:
-          - "PLACED"
-          - "IN_PREPARATION"
+          - "CREATED"
+          - "PREPARING"
           - "READY"
           - "SERVED"
           - "CANCELLED"
@@ -919,8 +870,8 @@ definitions:
       status:
         type: "string"
         enum:
-          - "PLACED"
-          - "IN_PREPARATION"
+          - "CREATED"
+          - "PREPARING"
           - "READY"
           - "SERVED"
           - "CANCELLED"
@@ -991,8 +942,8 @@ definitions:
       newStatus:
         type: "string"
         enum:
-          - "PLACED"
-          - "IN_PREPARATION"
+          - "CREATED"
+          - "PREPARING"
           - "READY"
           - "SERVED"
           - "CANCELLED"
@@ -1013,10 +964,11 @@ definitions:
       newStatus:
         type: "string"
         enum:
-          - "PLACED"
-          - "IN_PREPARATION"
+          - "CREATED"
+          - "PREPARING"
           - "READY"
           - "SERVED"
+          - "PAID"
           - "CANCELLED"
       timestamp:
         type: "string"
@@ -1035,19 +987,6 @@ definitions:
         type: "integer"
         format: "int32"
         minimum: 0
-
-  HealthStatus:
-    type: "object"
-    required:
-      - "status"
-      - "timestamp"
-    properties:
-      status:
-        type: "string"
-        example: "UP"
-      timestamp:
-        type: "string"
-        format: "date-time"
 
   ErrorResponse:
     type: "object"
