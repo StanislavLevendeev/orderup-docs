@@ -72,7 +72,7 @@ x-websocket:
   description: "Order Notification Service pushes real-time updates to clients subscribed to order-specific topics."
 
 paths:
-  /menu/menus:
+  /menu:
     get:
       tags:
         - "menu"
@@ -108,7 +108,7 @@ paths:
           schema:
             $ref: "#/definitions/Menu"
 
-  /menu/menus/{menuId}:
+  /menu/{menuId}:
     get:
       tags:
         - "menu"
@@ -155,7 +155,7 @@ paths:
         404:
           $ref: "#/responses/NotFound"
 
-  /menu/menus/{menuId}/items:
+  /menu/{menuId}/item:
     get:
       tags:
         - "menu"
@@ -196,7 +196,7 @@ paths:
         404:
           $ref: "#/responses/NotFound"
 
-  /menu/items/{menuItemId}:
+  /menu/item/{menuItemId}:
     get:
       tags:
         - "menu"
@@ -243,7 +243,7 @@ paths:
         404:
           $ref: "#/responses/NotFound"
 
-  /orders:
+  /order:
     get:
       tags:
         - "order"
@@ -274,7 +274,7 @@ paths:
           description: "Orders returned"
           schema:
             type: "array"
-            items:
+            item:
               $ref: "#/definitions/Order"
     post:
       tags:
@@ -293,7 +293,7 @@ paths:
           schema:
             $ref: "#/definitions/Order"
 
-  /orders/{orderId}:
+  /order/{orderId}:
     get:
       tags:
         - "order"
@@ -309,7 +309,7 @@ paths:
         404:
           $ref: "#/responses/NotFound"
 
-  /orders/{orderId}/items:
+  /order/{orderId}/item:
     post:
       tags:
         - "order"
@@ -330,7 +330,7 @@ paths:
         404:
           $ref: "#/responses/NotFound"
 
-  /orders/{orderId}/items/{orderItemId}:
+  /order/{orderId}/item/{orderItemId}:
     put:
       tags:
         - "order"
@@ -365,7 +365,155 @@ paths:
         404:
           $ref: "#/responses/NotFound"
 
-  /payments/orders/{orderId}:
+  /order/status/{orderId}:
+    get:
+      tags:
+        - "order-status"
+      summary: "Get the current order status"
+      operationId: "getOrderStatus"
+      parameters:
+        - $ref: "#/parameters/OrderIdPathParam"
+      responses:
+        200:
+          description: "Order status returned"
+          schema:
+            $ref: "#/definitions/OrderStatus"
+        404:
+          $ref: "#/responses/NotFound"
+    post:
+      tags:
+        - "order-status"
+      summary: "Append order status event"
+      description: "Also publishes OrderStatusChangedEvent to ActiveMQ topic order-status-changed."
+      operationId: "appendOrderStatus"
+      parameters:
+        - $ref: "#/parameters/OrderIdPathParam"
+        - in: "body"
+          name: "body"
+          required: true
+          schema:
+            $ref: "#/definitions/OrderStatusHistoryCreateRequest"
+      responses:
+        201:
+          description: "Order status event appended"
+          schema:
+            $ref: "#/definitions/OrderStatusHistory"
+        404:
+          $ref: "#/responses/NotFound"
+
+  /order/status/{orderId}/history:
+    get:
+      tags:
+        - "order-status"
+      summary: "Get order status history"
+      operationId: "getOrderStatusHistory"
+      parameters:
+        - $ref: "#/parameters/OrderIdPathParam"
+      responses:
+        200:
+          description: "Order status history returned"
+          schema:
+            type: "array"
+            item:
+              $ref: "#/definitions/OrderStatusHistory"
+        404:
+          $ref: "#/responses/NotFound"
+    post:
+      tags:
+        - "order-status"
+      summary: "Append order status event"
+      description: "Also publishes OrderStatusChangedEvent to ActiveMQ topic order-status-changed."
+      operationId: "appendOrderStatus"
+      parameters:
+        - $ref: "#/parameters/OrderIdPathParam"
+        - in: "body"
+          name: "body"
+          required: true
+          schema:
+            $ref: "#/definitions/OrderStatusHistoryCreateRequest"
+      responses:
+        201:
+          description: "Order status event appended"
+          schema:
+            $ref: "#/definitions/OrderStatusHistory"
+        404:
+          $ref: "#/responses/NotFound"
+
+  /order/item/{orderItemId}/status:
+    get:
+      tags:
+        - "order-status"
+      summary: "Get the latest order item status"
+      operationId: "getOrderItemStatus"
+      parameters:
+        - $ref: "#/parameters/OrderItemIdPathParam"
+      responses:
+        200:
+          description: "Order item status returned"
+          schema:
+            $ref: "#/definitions/OrderItemStatus"
+        404:
+          $ref: "#/responses/NotFound"
+    post:
+      tags:
+        - "order-status"
+      summary: "Append order item status event"
+      description: "Also publishes OrderItemStatusChangedEvent to ActiveMQ topic order-item-status-changed."
+      operationId: "appendOrderItemStatus"
+      parameters:
+        - $ref: "#/parameters/OrderItemIdPathParam"
+        - in: "body"
+          name: "body"
+          required: true
+          schema:
+            $ref: "#/definitions/OrderItemStatusHistoryCreateRequest"
+      responses:
+        201:
+          description: "Order item status event appended"
+          schema:
+            $ref: "#/definitions/OrderItemStatusHistory"
+        404:
+          $ref: "#/responses/NotFound"
+
+  /order/item/{orderItemId}/status/history:
+    get:
+      tags:
+        - "order-status"
+      summary: "Get the order item status history"
+      operationId: "getOrderItemStatusHistory"
+      parameters:
+        - $ref: "#/parameters/OrderItemIdPathParam"
+      responses:
+        200:
+          description: "Order item status history returned"
+          schema:
+            type: "array"
+            item:
+              $ref: "#/definitions/OrderItemStatusHistory"
+        404:
+          $ref: "#/responses/NotFound"
+    post:
+      tags:
+        - "order-status"
+      summary: "Append order item status event"
+      description: "Also publishes OrderItemStatusChangedEvent to ActiveMQ topic order-item-status-changed."
+      operationId: "appendOrderItemStatus"
+      parameters:
+        - $ref: "#/parameters/OrderItemIdPathParam"
+        - in: "body"
+          name: "body"
+          required: true
+          schema:
+            $ref: "#/definitions/OrderItemStatusHistoryCreateRequest"
+      responses:
+        201:
+          description: "Order item status event appended"
+          schema:
+            $ref: "#/definitions/OrderItemStatusHistory"
+        404:
+          $ref: "#/responses/NotFound"
+
+  /payment/order/{orderId}:
     get:
       tags:
         - "payment"
@@ -400,83 +548,7 @@ paths:
         404:
           $ref: "#/responses/NotFound"
 
-  /order-status/orders/{orderId}/history:
-    get:
-      tags:
-        - "order-status"
-      summary: "Get order status history"
-      operationId: "getOrderStatusHistory"
-      parameters:
-        - $ref: "#/parameters/OrderIdPathParam"
-      responses:
-        200:
-          description: "Order status history returned"
-          schema:
-            type: "array"
-            items:
-              $ref: "#/definitions/OrderStatusHistory"
-        404:
-          $ref: "#/responses/NotFound"
-    post:
-      tags:
-        - "order-status"
-      summary: "Append order status event"
-      description: "Also publishes OrderStatusChangedEvent to ActiveMQ topic order-status-changed."
-      operationId: "appendOrderStatus"
-      parameters:
-        - $ref: "#/parameters/OrderIdPathParam"
-        - in: "body"
-          name: "body"
-          required: true
-          schema:
-            $ref: "#/definitions/OrderStatusHistoryCreateRequest"
-      responses:
-        201:
-          description: "Order status event appended"
-          schema:
-            $ref: "#/definitions/OrderStatusHistory"
-        404:
-          $ref: "#/responses/NotFound"
-
-  /order-status/order-items/{orderItemId}/history:
-    get:
-      tags:
-        - "order-status"
-      summary: "Get order item status history"
-      operationId: "getOrderItemStatusHistory"
-      parameters:
-        - $ref: "#/parameters/OrderItemIdPathParam"
-      responses:
-        200:
-          description: "Order item status history returned"
-          schema:
-            type: "array"
-            items:
-              $ref: "#/definitions/OrderItemStatusHistory"
-        404:
-          $ref: "#/responses/NotFound"
-    post:
-      tags:
-        - "order-status"
-      summary: "Append order item status event"
-      description: "Also publishes OrderItemStatusChangedEvent to ActiveMQ topic order-item-status-changed."
-      operationId: "appendOrderItemStatus"
-      parameters:
-        - $ref: "#/parameters/OrderItemIdPathParam"
-        - in: "body"
-          name: "body"
-          required: true
-          schema:
-            $ref: "#/definitions/OrderItemStatusHistoryCreateRequest"
-      responses:
-        201:
-          description: "Order item status event appended"
-          schema:
-            $ref: "#/definitions/OrderItemStatusHistory"
-        404:
-          $ref: "#/responses/NotFound"
-
-  /notifications/ws:
+  /notification/ws:
     get:
       tags:
         - "notification"
@@ -494,7 +566,7 @@ paths:
         426:
           description: "Upgrade Required"
 
-  /notifications/orders/{orderId}/subscriptions:
+  /notification/order/{orderId}/subscription:
     get:
       tags:
         - "notification"
