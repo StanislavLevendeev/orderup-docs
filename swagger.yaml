@@ -617,11 +617,16 @@ definitions:
         type: "string"
       active:
         type: "boolean"
+      items:
+        type: "array"
+        items:
+          $ref: "#/definitions/MenuItem"
 
   MenuCreateRequest:
     type: "object"
     required:
       - "name"
+      - "active"
     properties:
       name:
         type: "string"
@@ -631,6 +636,9 @@ definitions:
 
   MenuUpdateRequest:
     type: "object"
+    required:
+      - "name"
+      - "active"
     properties:
       name:
         type: "string"
@@ -708,6 +716,8 @@ definitions:
       createdAt:
         type: "string"
         format: "date-time"
+      totalPrice:
+        type: "BigDecimal"
       source:
         type: "string"
         enum:
