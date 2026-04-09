@@ -1,1062 +1,1372 @@
----
-swagger: "2.0"
+swagger: '2.0'
 info:
-  title: "OrderUp API"
-  version: "2.0.0"
-  description: |
+  title: OrderUp API
+  version: 2.0.0
+  description: >
     API documentation for the OrderUp microservices platform.
 
-    External client traffic is handled by NGINX API Gateway, which routes requests to domain services.
-    Service discovery is handled by Consul so service instances can register and be resolved dynamically.
+
+    External client traffic is handled by NGINX API Gateway, which routes
+    requests to domain services.
+
+    Service discovery is handled by Consul so service instances can register and
+    be resolved dynamically.
+
 
     Communication patterns:
+
     - Synchronous: REST + JSON for operations that require immediate responses.
-    - Asynchronous: ActiveMQ message topics for order and order-item status change events.
+
+    - Asynchronous: ActiveMQ message topics for order and order-item status
+    change events.
+
     - Real-time push: WebSocket topics for kitchen/tablet updates.
-
-host: "localhost:8082"
-basePath: ""
+host: localhost:8082
+basePath: ''
 schemes:
-  - "http"
+  - https
+  - http
 consumes:
-  - "application/json"
+  - application/json
 produces:
-  - "application/json"
+  - application/json
 tags:
-  - name: "menu"
-    description: "Menu management"
-  - name: "menu-item"
-    description: "Menu item management"
-  - name: "order"
-    description: "Order and order item operations"
-  - name: "order-status"
-    description: "Order and order-item status tracking"
-  - name: "payment"
-    description: "Payment registration and status"
-  - name: "notification"
-    description: "WebSocket notification operations"
-
+  - name: menu
+    description: Menu management
+  - name: menu-item
+    description: Menu item management
+  - name: order
+    description: Order and order item operations
+  - name: order-status
+    description: Order and order-item status tracking
+  - name: payment
+    description: Payment registration and status
+  - name: notification
+    description: WebSocket notification operations
 paths:
   /menus:
     get:
       tags:
-        - "menu"
-      summary: "List menus"
-      operationId: "listMenus"
+        - menu
+      summary: List menus
+      operationId: listMenus
       parameters:
-        - name: "active"
-          in: "query"
+        - name: active
+          in: query
           required: false
-          type: "boolean"
-          description: "Filter only active menus"
+          type: boolean
+          description: Filter only active menus
+        - $ref: '#/parameters/LimitQueryParam'
+        - $ref: '#/parameters/OffsetQueryParam'
       responses:
-        200:
-          description: "Menus returned"
+        '200':
+          description: Menus returned
           schema:
-            type: "array"
+            type: array
             items:
-              $ref: "#/definitions/Menu"
+              $ref: '#/definitions/Menu'
+        '400': &ref_0
+          $ref: '#/responses/BadRequest'
+        '401': &ref_1
+          $ref: '#/responses/Unauthorized'
+        '403': &ref_2
+          $ref: '#/responses/Forbidden'
+        '409': &ref_3
+          $ref: '#/responses/Conflict'
+      description: >-
+
+
+        Access Control: Endpoint requires specific authenticated Roles. See
+        implementation.
     post:
       tags:
-        - "menu"
-      summary: "Create a menu"
-      operationId: "createMenu"
+        - menu
+      summary: Create a menu
+      operationId: createMenu
       parameters:
-        - in: "body"
-          name: "body"
+        - in: body
+          name: body
           required: true
           schema:
-            $ref: "#/definitions/MenuCreateRequest"
+            $ref: '#/definitions/MenuCreateRequest'
       responses:
-        201:
-          description: "Menu created"
+        '201':
+          description: Menu created
           schema:
-            $ref: "#/definitions/Menu"
+            $ref: '#/definitions/Menu'
+        '400': *ref_0
+        '401': *ref_1
+        '403': *ref_2
+        '409': *ref_3
+      description: >-
 
+
+        Access Control: Endpoint requires specific authenticated Roles. See
+        implementation.
   /menus/{menuId}:
     get:
       tags:
-        - "menu"
-      summary: "Get menu by ID"
-      operationId: "getMenuById"
+        - menu
+      summary: Get menu by ID
+      operationId: getMenuById
       parameters:
-        - $ref: "#/parameters/MenuIdPathParam"
+        - $ref: '#/parameters/MenuIdPathParam'
       responses:
-        200:
-          description: "Menu returned"
+        '200':
+          description: Menu returned
           schema:
-            $ref: "#/definitions/Menu"
-        404:
-          $ref: "#/responses/NotFound"
+            $ref: '#/definitions/Menu'
+        '400': *ref_0
+        '401': *ref_1
+        '403': *ref_2
+        '404':
+          $ref: '#/responses/NotFound'
+        '409': *ref_3
+      description: >-
+
+
+        Access Control: Endpoint requires specific authenticated Roles. See
+        implementation.
     put:
       tags:
-        - "menu"
-      summary: "Update menu"
-      operationId: "updateMenu"
+        - menu
+      summary: Update menu
+      operationId: updateMenu
       parameters:
-        - $ref: "#/parameters/MenuIdPathParam"
-        - in: "body"
-          name: "body"
+        - $ref: '#/parameters/MenuIdPathParam'
+        - in: body
+          name: body
           required: true
           schema:
-            $ref: "#/definitions/MenuUpdateRequest"
+            $ref: '#/definitions/MenuUpdateRequest'
       responses:
-        200:
-          description: "Menu updated"
+        '200':
+          description: Menu updated
           schema:
-            $ref: "#/definitions/Menu"
-        404:
-          $ref: "#/responses/NotFound"
+            $ref: '#/definitions/Menu'
+        '400': *ref_0
+        '401': *ref_1
+        '403': *ref_2
+        '404':
+          $ref: '#/responses/NotFound'
+        '409': *ref_3
+      description: >-
+
+
+        Access Control: Endpoint requires specific authenticated Roles. See
+        implementation.
     delete:
       tags:
-        - "menu"
-      summary: "Delete menu"
-      operationId: "deleteMenu"
+        - menu
+      summary: Delete menu
+      operationId: deleteMenu
       parameters:
-        - $ref: "#/parameters/MenuIdPathParam"
+        - $ref: '#/parameters/MenuIdPathParam'
       responses:
-        204:
-          description: "Menu deleted"
-        404:
-          $ref: "#/responses/NotFound"
+        '204':
+          description: Menu deleted
+        '400': *ref_0
+        '401': *ref_1
+        '403': *ref_2
+        '404':
+          $ref: '#/responses/NotFound'
+        '409': *ref_3
+      description: >-
 
+
+        Access Control: Endpoint requires specific authenticated Roles. See
+        implementation.
   /menus/{menuId}/items:
     get:
       tags:
-        - "menu-item"
-      summary: "List menu items for a menu"
-      operationId: "listMenuItems"
+        - menu-item
+      summary: List menu items for a menu
+      operationId: listMenuItems
       parameters:
-        - $ref: "#/parameters/MenuIdPathParam"
-        - name: "available"
-          in: "query"
+        - $ref: '#/parameters/MenuIdPathParam'
+        - name: available
+          in: query
           required: false
-          type: "boolean"
+          type: boolean
       responses:
-        200:
-          description: "Menu items returned"
+        '200':
+          description: Menu items returned
           schema:
-            type: "array"
+            type: array
             items:
-              $ref: "#/definitions/MenuItem"
-        404:
-          $ref: "#/responses/NotFound"
+              $ref: '#/definitions/MenuItem'
+        '400': *ref_0
+        '401': *ref_1
+        '403': *ref_2
+        '404':
+          $ref: '#/responses/NotFound'
+        '409': *ref_3
+      description: >-
+
+
+        Access Control: Endpoint requires specific authenticated Roles. See
+        implementation.
     post:
       tags:
-        - "menu-item"
-      summary: "Create menu item"
-      operationId: "createMenuItem"
+        - menu-item
+      summary: Create menu item
+      operationId: createMenuItem
       parameters:
-        - $ref: "#/parameters/MenuIdPathParam"
-        - in: "body"
-          name: "body"
+        - $ref: '#/parameters/MenuIdPathParam'
+        - in: body
+          name: body
           required: true
           schema:
-            $ref: "#/definitions/MenuItemCreateRequest"
+            $ref: '#/definitions/MenuItemCreateRequest'
       responses:
-        201:
-          description: "Menu item created"
+        '201':
+          description: Menu item created
           schema:
-            $ref: "#/definitions/MenuItem"
-        404:
-          $ref: "#/responses/NotFound"
+            $ref: '#/definitions/MenuItem'
+        '400': *ref_0
+        '401': *ref_1
+        '403': *ref_2
+        '404':
+          $ref: '#/responses/NotFound'
+        '409': *ref_3
+      description: >-
 
+
+        Access Control: Endpoint requires specific authenticated Roles. See
+        implementation.
   /menus/{menuId}/items/{menuItemId}:
     get:
       tags:
-        - "menu-item"
-      summary: "Get menu item by ID"
-      operationId: "getMenuItemById"
+        - menu-item
+      summary: Get menu item by ID
+      operationId: getMenuItemById
       parameters:
-        - $ref: "#/parameters/MenuIdPathParam"
-        - $ref: "#/parameters/MenuItemIdPathParam"
+        - $ref: '#/parameters/MenuIdPathParam'
+        - $ref: '#/parameters/MenuItemIdPathParam'
       responses:
-        200:
-          description: "Menu item returned"
+        '200':
+          description: Menu item returned
           schema:
-            $ref: "#/definitions/MenuItem"
-        404:
-          $ref: "#/responses/NotFound"
+            $ref: '#/definitions/MenuItem'
+        '400': *ref_0
+        '401': *ref_1
+        '403': *ref_2
+        '404':
+          $ref: '#/responses/NotFound'
+        '409': *ref_3
+      description: >-
+
+
+        Access Control: Endpoint requires specific authenticated Roles. See
+        implementation.
     put:
       tags:
-        - "menu-item"
-      summary: "Update menu item"
-      operationId: "updateMenuItem"
+        - menu-item
+      summary: Update menu item
+      operationId: updateMenuItem
       parameters:
-        - $ref: "#/parameters/MenuIdPathParam"
-        - $ref: "#/parameters/MenuItemIdPathParam"
-        - in: "body"
-          name: "body"
+        - $ref: '#/parameters/MenuIdPathParam'
+        - $ref: '#/parameters/MenuItemIdPathParam'
+        - in: body
+          name: body
           required: true
           schema:
-            $ref: "#/definitions/MenuItemUpdateRequest"
+            $ref: '#/definitions/MenuItemUpdateRequest'
       responses:
-        200:
-          description: "Menu item updated"
+        '200':
+          description: Menu item updated
           schema:
-            $ref: "#/definitions/MenuItem"
-        404:
-          $ref: "#/responses/NotFound"
+            $ref: '#/definitions/MenuItem'
+        '400': *ref_0
+        '401': *ref_1
+        '403': *ref_2
+        '404':
+          $ref: '#/responses/NotFound'
+        '409': *ref_3
+      description: >-
+
+
+        Access Control: Endpoint requires specific authenticated Roles. See
+        implementation.
     delete:
       tags:
-        - "menu-item"
-      summary: "Delete menu item"
-      operationId: "deleteMenuItem"
+        - menu-item
+      summary: Delete menu item
+      operationId: deleteMenuItem
       parameters:
-        - $ref: "#/parameters/MenuIdPathParam"
-        - $ref: "#/parameters/MenuItemIdPathParam"
+        - $ref: '#/parameters/MenuIdPathParam'
+        - $ref: '#/parameters/MenuItemIdPathParam'
       responses:
-        204:
-          description: "Menu item deleted"
-        404:
-          $ref: "#/responses/NotFound"
+        '204':
+          description: Menu item deleted
+        '400': *ref_0
+        '401': *ref_1
+        '403': *ref_2
+        '404':
+          $ref: '#/responses/NotFound'
+        '409': *ref_3
+      description: >-
 
+
+        Access Control: Endpoint requires specific authenticated Roles. See
+        implementation.
   /orders:
     get:
       tags:
-        - "order"
-      summary: "List orders"
-      operationId: "listOrders"
+        - order
+      summary: List orders
+      operationId: listOrders
       parameters:
-        - name: "source"
-          in: "query"
+        - name: source
+          in: query
           required: false
-          type: "string"
+          type: string
           enum:
-            - "TABLET"
-            - "WAITER"
-            - "WEB"
-        - name: "status"
-          in: "query"
+            - TABLET
+            - WAITER
+            - WEB
+        - name: status
+          in: query
           required: false
-          type: "string"
+          type: string
           enum:
-            - "CREATED"
-            - "PREPARING"
-            - "READY"
-            - "SERVED"
-            - "CANCELLED"
-            - "PAID"
+            - CREATED
+            - PREPARING
+            - READY
+            - SERVED
+            - CANCELLED
+            - PAID
+        - $ref: '#/parameters/LimitQueryParam'
+        - $ref: '#/parameters/OffsetQueryParam'
       responses:
-        200:
-          description: "Orders returned"
+        '200':
+          description: Orders returned
           schema:
-            type: "array"
+            type: array
             items:
-              $ref: "#/definitions/Order"
+              $ref: '#/definitions/Order'
+        '400': *ref_0
+        '401': *ref_1
+        '403': *ref_2
+        '409': *ref_3
+      description: >-
+
+
+        Access Control: Endpoint requires specific authenticated Roles. See
+        implementation.
     post:
       tags:
-        - "order"
-      summary: "Create order"
-      operationId: "createOrder"
+        - order
+      summary: Create order
+      operationId: createOrder
       parameters:
-        - in: "body"
-          name: "body"
+        - in: body
+          name: body
           required: true
           schema:
-            $ref: "#/definitions/OrderCreateRequest"
+            $ref: '#/definitions/OrderCreateRequest'
       responses:
-        201:
-          description: "Order created"
+        '201':
+          description: Order created
           schema:
-            $ref: "#/definitions/Order"
+            $ref: '#/definitions/Order'
+        '400': *ref_0
+        '401': *ref_1
+        '403': *ref_2
+        '409': *ref_3
+      description: >-
 
+
+        Access Control: Endpoint requires specific authenticated Roles. See
+        implementation.
   /orders/{orderId}:
     get:
       tags:
-        - "order"
-      summary: "Get order by ID"
-      operationId: "getOrderById"
+        - order
+      summary: Get order by ID
+      operationId: getOrderById
       parameters:
-        - $ref: "#/parameters/OrderIdPathParam"
+        - $ref: '#/parameters/OrderIdPathParam'
       responses:
-        200:
-          description: "Order returned"
+        '200':
+          description: Order returned
           schema:
-            $ref: "#/definitions/Order"
-        404:
-          $ref: "#/responses/NotFound"
+            $ref: '#/definitions/Order'
+        '400': *ref_0
+        '401': *ref_1
+        '403': *ref_2
+        '404':
+          $ref: '#/responses/NotFound'
+        '409': *ref_3
+      description: >-
 
+
+        Access Control: Endpoint requires specific authenticated Roles. See
+        implementation.
   /orders/{orderId}/items:
     post:
       tags:
-        - "order"
-      summary: "Add item to order"
-      operationId: "addOrderItem"
+        - order
+      summary: Add item to order
+      operationId: addOrderItem
       parameters:
-        - $ref: "#/parameters/OrderIdPathParam"
-        - in: "body"
-          name: "body"
+        - $ref: '#/parameters/OrderIdPathParam'
+        - in: body
+          name: body
           required: true
           schema:
-            $ref: "#/definitions/OrderItemCreateRequest"
+            $ref: '#/definitions/OrderItemCreateRequest'
       responses:
-        201:
-          description: "Order item added"
+        '201':
+          description: Order item added
           schema:
-            $ref: "#/definitions/OrderItem"
-        404:
-          $ref: "#/responses/NotFound"
+            $ref: '#/definitions/OrderItem'
+        '400': *ref_0
+        '401': *ref_1
+        '403': *ref_2
+        '404':
+          $ref: '#/responses/NotFound'
+        '409': *ref_3
+      description: >-
 
+
+        Access Control: Endpoint requires specific authenticated Roles. See
+        implementation.
   /orders/{orderId}/items/{orderItemId}:
     put:
       tags:
-        - "order"
-      summary: "Update quantity of an order item"
-      operationId: "updateOrderItem"
+        - order
+      summary: Update quantity of an order item
+      operationId: updateOrderItem
       parameters:
-        - $ref: "#/parameters/OrderIdPathParam"
-        - $ref: "#/parameters/OrderItemIdPathParam"
-        - in: "body"
-          name: "body"
+        - $ref: '#/parameters/OrderIdPathParam'
+        - $ref: '#/parameters/OrderItemIdPathParam'
+        - in: body
+          name: body
           required: true
           schema:
-            $ref: "#/definitions/OrderItemUpdateRequest"
+            $ref: '#/definitions/OrderItemUpdateRequest'
       responses:
-        200:
-          description: "Order item updated"
+        '200':
+          description: Order item updated
           schema:
-            $ref: "#/definitions/OrderItem"
-        404:
-          $ref: "#/responses/NotFound"
+            $ref: '#/definitions/OrderItem'
+        '400': *ref_0
+        '401': *ref_1
+        '403': *ref_2
+        '404':
+          $ref: '#/responses/NotFound'
+        '409': *ref_3
+      description: >-
+
+
+        Access Control: Endpoint requires specific authenticated Roles. See
+        implementation.
     delete:
       tags:
-        - "order"
-      summary: "Remove item from order"
-      operationId: "deleteOrderItem"
+        - order
+      summary: Remove item from order
+      operationId: deleteOrderItem
       parameters:
-        - $ref: "#/parameters/OrderIdPathParam"
-        - $ref: "#/parameters/OrderItemIdPathParam"
+        - $ref: '#/parameters/OrderIdPathParam'
+        - $ref: '#/parameters/OrderItemIdPathParam'
       responses:
-        204:
-          description: "Order item removed"
-        404:
-          $ref: "#/responses/NotFound"
+        '204':
+          description: Order item removed
+        '400': *ref_0
+        '401': *ref_1
+        '403': *ref_2
+        '404':
+          $ref: '#/responses/NotFound'
+        '409': *ref_3
+      description: >-
 
+
+        Access Control: Endpoint requires specific authenticated Roles. See
+        implementation.
   /orders/{orderId}/status:
     get:
       tags:
-        - "order-status"
-      summary: "Get the current order status"
-      operationId: "getOrderStatus"
+        - order-status
+      summary: Get the current order status
+      operationId: getOrderStatus
       parameters:
-        - $ref: "#/parameters/OrderIdPathParam"
+        - $ref: '#/parameters/OrderIdPathParam'
       responses:
-        200:
-          description: "Order status returned"
+        '200':
+          description: Order status returned
           schema:
-            $ref: "#/definitions/OrderStatus"
-        404:
-          $ref: "#/responses/NotFound"
+            $ref: '#/definitions/OrderStatus'
+        '400': *ref_0
+        '401': *ref_1
+        '403': *ref_2
+        '404':
+          $ref: '#/responses/NotFound'
+        '409': *ref_3
+      description: >-
+
+
+        Access Control: Endpoint requires specific authenticated Roles. See
+        implementation.
     post:
       tags:
-        - "order-status"
-      summary: "Append order status event"
-      description: "Also publishes OrderStatusChangedEvent to ActiveMQ topic order-status-changed."
-      operationId: "appendOrderStatus"
+        - order-status
+      summary: Append order status event
+      description: >-
+        Also publishes OrderStatusChangedEvent to ActiveMQ topic
+        order-status-changed.
+
+
+        Access Control: Endpoint requires specific authenticated Roles. See
+        implementation.
+      operationId: appendOrderStatus
       parameters:
-        - $ref: "#/parameters/OrderIdPathParam"
-        - in: "body"
-          name: "body"
+        - $ref: '#/parameters/OrderIdPathParam'
+        - in: body
+          name: body
           required: true
           schema:
-            $ref: "#/definitions/OrderStatusHistoryCreateRequest"
+            $ref: '#/definitions/OrderStatusHistoryCreateRequest'
       responses:
-        201:
-          description: "Order status event appended"
+        '201':
+          description: Order status event appended
           schema:
-            $ref: "#/definitions/OrderStatusHistory"
-        404:
-          $ref: "#/responses/NotFound"
-
+            $ref: '#/definitions/OrderStatusHistory'
+        '400': *ref_0
+        '401': *ref_1
+        '403': *ref_2
+        '404':
+          $ref: '#/responses/NotFound'
+        '409': *ref_3
   /orders/{orderId}/status-history:
     get:
       tags:
-        - "order-status"
-      summary: "Get order status history"
-      operationId: "getOrderStatusHistory"
+        - order-status
+      summary: Get order status history
+      operationId: getOrderStatusHistory
       parameters:
-        - $ref: "#/parameters/OrderIdPathParam"
+        - $ref: '#/parameters/OrderIdPathParam'
+        - $ref: '#/parameters/LimitQueryParam'
+        - $ref: '#/parameters/OffsetQueryParam'
       responses:
-        200:
-          description: "Order status history returned"
+        '200':
+          description: Order status history returned
           schema:
-            type: "array"
+            type: array
             item:
-              $ref: "#/definitions/OrderStatusHistory"
-        404:
-          $ref: "#/responses/NotFound"
+              $ref: '#/definitions/OrderStatusHistory'
+        '400': *ref_0
+        '401': *ref_1
+        '403': *ref_2
+        '404':
+          $ref: '#/responses/NotFound'
+        '409': *ref_3
+      description: >-
 
+
+        Access Control: Endpoint requires specific authenticated Roles. See
+        implementation.
   /orders/{orderId}/items/{orderItemId}/status:
     get:
       tags:
-        - "order-status"
-      summary: "Get the latest order item status"
-      operationId: "getOrderItemStatus"
+        - order-status
+      summary: Get the latest order item status
+      operationId: getOrderItemStatus
       parameters:
-        - $ref: "#/parameters/OrderIdPathParam"
-        - $ref: "#/parameters/OrderItemIdPathParam"
+        - $ref: '#/parameters/OrderIdPathParam'
+        - $ref: '#/parameters/OrderItemIdPathParam'
       responses:
-        200:
-          description: "Order item status returned"
+        '200':
+          description: Order item status returned
           schema:
-            $ref: "#/definitions/OrderItemStatus"
-        404:
-          $ref: "#/responses/NotFound"
+            $ref: '#/definitions/OrderItemStatus'
+        '400': *ref_0
+        '401': *ref_1
+        '403': *ref_2
+        '404':
+          $ref: '#/responses/NotFound'
+        '409': *ref_3
+      description: >-
+
+
+        Access Control: Endpoint requires specific authenticated Roles. See
+        implementation.
     post:
       tags:
-        - "order-status"
-      summary: "Append order item status event"
-      description: "Also publishes OrderItemStatusChangedEvent to ActiveMQ topic order-item-status-changed."
-      operationId: "appendOrderItemStatus"
+        - order-status
+      summary: Append order item status event
+      description: >-
+        Also publishes OrderItemStatusChangedEvent to ActiveMQ topic
+        order-item-status-changed.
+
+
+        Access Control: Endpoint requires specific authenticated Roles. See
+        implementation.
+      operationId: appendOrderItemStatus
       parameters:
-        - $ref: "#/parameters/OrderIdPathParam"
-        - $ref: "#/parameters/OrderItemIdPathParam"
-        - in: "body"
-          name: "body"
+        - $ref: '#/parameters/OrderIdPathParam'
+        - $ref: '#/parameters/OrderItemIdPathParam'
+        - in: body
+          name: body
           required: true
           schema:
-            $ref: "#/definitions/OrderItemStatusHistoryCreateRequest"
+            $ref: '#/definitions/OrderItemStatusHistoryCreateRequest'
       responses:
-        201:
-          description: "Order item status event appended"
+        '201':
+          description: Order item status event appended
           schema:
-            $ref: "#/definitions/OrderItemStatusHistory"
-        404:
-          $ref: "#/responses/NotFound"
-
+            $ref: '#/definitions/OrderItemStatusHistory'
+        '400': *ref_0
+        '401': *ref_1
+        '403': *ref_2
+        '404':
+          $ref: '#/responses/NotFound'
+        '409': *ref_3
   /orders/{orderId}/items/{orderItemId}/status-history:
     get:
       tags:
-        - "order-status"
-      summary: "Get the order item status history"
-      operationId: "getOrderItemStatusHistory"
+        - order-status
+      summary: Get the order item status history
+      operationId: getOrderItemStatusHistory
       parameters:
-        - $ref: "#/parameters/OrderIdPathParam"
-        - $ref: "#/parameters/OrderItemIdPathParam"
+        - $ref: '#/parameters/OrderIdPathParam'
+        - $ref: '#/parameters/OrderItemIdPathParam'
+        - $ref: '#/parameters/LimitQueryParam'
+        - $ref: '#/parameters/OffsetQueryParam'
       responses:
-        200:
-          description: "Order item status history returned"
+        '200':
+          description: Order item status history returned
           schema:
-            type: "array"
+            type: array
             item:
-              $ref: "#/definitions/OrderItemStatusHistory"
-        404:
-          $ref: "#/responses/NotFound"
+              $ref: '#/definitions/OrderItemStatusHistory'
+        '400': *ref_0
+        '401': *ref_1
+        '403': *ref_2
+        '404':
+          $ref: '#/responses/NotFound'
+        '409': *ref_3
+      description: >-
 
+
+        Access Control: Endpoint requires specific authenticated Roles. See
+        implementation.
   /orders/{orderId}/payments:
     get:
       tags:
-        - "payment"
-      summary: "Get payments by order ID"
-      operationId: "getPaymentByOrderId"
+        - payment
+      summary: Get payments by order ID
+      operationId: getPaymentByOrderId
       parameters:
-        - $ref: "#/parameters/OrderIdPathParam"
+        - $ref: '#/parameters/OrderIdPathParam'
       responses:
-        200:
-          description: "Payments returned"
+        '200':
+          description: Payments returned
           schema:
-            type: "array"
+            type: array
             items:
-              $ref: "#/definitions/Payment"
-        404:
-          $ref: "#/responses/NotFound"
+              $ref: '#/definitions/Payment'
+        '400': *ref_0
+        '401': *ref_1
+        '403': *ref_2
+        '404':
+          $ref: '#/responses/NotFound'
+        '409': *ref_3
+      description: >-
+
+
+        Access Control: Endpoint requires specific authenticated Roles. See
+        implementation.
     post:
       tags:
-        - "payment"
-      summary: "Register payment for order"
-      operationId: "createPayment"
+        - payment
+      summary: Register payment for order
+      operationId: createPayment
       parameters:
-        - $ref: "#/parameters/OrderIdPathParam"
-        - in: "body"
-          name: "body"
+        - $ref: '#/parameters/OrderIdPathParam'
+        - in: body
+          name: body
           required: true
           schema:
-            $ref: "#/definitions/PaymentCreateRequest"
+            $ref: '#/definitions/PaymentCreateRequest'
       responses:
-        201:
-          description: "Payment created"
+        '201':
+          description: Payment created
           schema:
-            $ref: "#/definitions/Payment"
-        404:
-          $ref: "#/responses/NotFound"
+            $ref: '#/definitions/Payment'
+        '400': *ref_0
+        '401': *ref_1
+        '403': *ref_2
+        '404':
+          $ref: '#/responses/NotFound'
+        '409': *ref_3
+      description: >-
 
+
+        Access Control: Endpoint requires specific authenticated Roles. See
+        implementation.
   /payments/{paymentId}:
     get:
       tags:
-        - "payment"
-      summary: "Get payment by payment ID"
-      operationId: "getPaymentByPaymentId"
+        - payment
+      summary: Get payment by payment ID
+      operationId: getPaymentByPaymentId
       parameters:
-        - $ref: "#/parameters/PaymentIdPathParam"
+        - $ref: '#/parameters/PaymentIdPathParam'
       responses:
-        200:
-          description: "Payment returned"
+        '200':
+          description: Payment returned
           schema:
-            $ref: "#/definitions/Payment"
-        404:
-          $ref: "#/responses/NotFound"
+            $ref: '#/definitions/Payment'
+        '400': *ref_0
+        '401': *ref_1
+        '403': *ref_2
+        '404':
+          $ref: '#/responses/NotFound'
+        '409': *ref_3
+      description: >-
 
+
+        Access Control: Endpoint requires specific authenticated Roles. See
+        implementation.
   /notifications/ws:
     get:
       tags:
-        - "notification"
-      summary: "WebSocket handshake endpoint"
-      description: |
+        - notification
+      summary: WebSocket handshake endpoint
+      description: >-
         HTTP upgrade endpoint used by clients to establish WebSocket sessions.
-        After connecting, clients subscribe to destination /topic/orders/{orderId}
+
+        After connecting, clients subscribe to destination
+        /topic/orders/{orderId}
+
         to receive order-specific real-time status updates.
-      operationId: "websocketHandshake"
+
+
+
+        Access Control: Endpoint requires specific authenticated Roles. See
+        implementation.
+      operationId: websocketHandshake
       produces:
-        - "application/json"
+        - application/json
       responses:
-        101:
-          description: "Switching Protocols"
-        426:
-          description: "Upgrade Required"
-
+        '101':
+          description: Switching Protocols
+        '400': *ref_0
+        '401': *ref_1
+        '403': *ref_2
+        '409': *ref_3
+        '426':
+          description: Upgrade Required
 parameters:
+  LimitQueryParam:
+    name: limit
+    in: query
+    required: false
+    type: integer
+    format: int32
+    default: 50
+    maximum: 100
+    description: Maximum number of items to return
+  OffsetQueryParam:
+    name: offset
+    in: query
+    required: false
+    type: integer
+    format: int32
+    default: 0
+    description: Number of items to skip
   MenuIdPathParam:
-    name: "menuId"
-    in: "path"
+    name: menuId
+    in: path
     required: true
-    type: "string"
-    format: "uuid"
+    type: string
+    format: uuid
   MenuItemIdPathParam:
-    name: "menuItemId"
-    in: "path"
+    name: menuItemId
+    in: path
     required: true
-    type: "string"
-    format: "uuid"
+    type: string
+    format: uuid
   OrderIdPathParam:
-    name: "orderId"
-    in: "path"
+    name: orderId
+    in: path
     required: true
-    type: "string"
-    format: "uuid"
+    type: string
+    format: uuid
   PaymentIdPathParam:
-    name: "paymentId"
-    in: "path"
+    name: paymentId
+    in: path
     required: true
-    type: "string"
-    format: "uuid"
+    type: string
+    format: uuid
   OrderItemIdPathParam:
-    name: "orderItemId"
-    in: "path"
+    name: orderItemId
+    in: path
     required: true
-    type: "string"
-    format: "uuid"
-
+    type: string
+    format: uuid
 responses:
-  NotFound:
-    description: "Entity not found"
+  BadRequest:
+    description: Invalid input or badly formatted request
     schema:
-      $ref: "#/definitions/ErrorResponse"
-
+      $ref: '#/definitions/ErrorResponse'
+  Unauthorized:
+    description: Authentication token missing or invalid
+    schema:
+      $ref: '#/definitions/ErrorResponse'
+  Forbidden:
+    description: User is missing required roles
+    schema:
+      $ref: '#/definitions/ErrorResponse'
+  NotFound:
+    description: Entity not found
+    schema:
+      $ref: '#/definitions/ErrorResponse'
+  Conflict:
+    description: Business rule violation or conflict
+    schema:
+      $ref: '#/definitions/ErrorResponse'
 securityDefinitions:
   bearerAuth:
-    type: "apiKey"
-    name: "Authorization"
-    in: "header"
-
+    type: apiKey
+    name: Authorization
+    in: header
 security:
   - bearerAuth: []
-
 definitions:
   Menu:
-    type: "object"
+    type: object
     required:
-      - "id"
-      - "name"
-      - "active"
+      - id
+      - name
+      - active
     properties:
       id:
-        type: "string"
-        format: "uuid"
+        type: string
+        format: uuid
       name:
-        type: "string"
+        type: string
       active:
-        type: "boolean"
+        type: boolean
       items:
-        type: "array"
+        type: array
         items:
-          $ref: "#/definitions/MenuItem"
-
+          $ref: '#/definitions/MenuItem'
   MenuCreateRequest:
-    type: "object"
+    type: object
     required:
-      - "name"
-      - "active"
+      - name
+      - active
     properties:
       name:
-        type: "string"
+        type: string
+        maxLength: 255
       active:
-        type: "boolean"
+        type: boolean
         default: true
-
   MenuUpdateRequest:
-    type: "object"
+    type: object
     required:
-      - "name"
-      - "active"
+      - name
+      - active
     properties:
       name:
-        type: "string"
+        type: string
+        maxLength: 255
       active:
-        type: "boolean"
-
+        type: boolean
   MenuItem:
-    type: "object"
+    type: object
     required:
-      - "id"
-      - "name"
-      - "price"
-      - "available"
+      - id
+      - name
+      - price
+      - available
     properties:
       id:
-        type: "string"
-        format: "uuid"
+        type: string
+        format: uuid
       name:
-        type: "string"
+        type: string
       description:
-        type: "string"
+        type: string
       imagePath:
-        type: "string"
+        type: string
       price:
-        type: "number"
-        format: "double"
+        type: integer
+        format: int64
+        description: Value in minor units (cents)
       available:
-        type: "boolean"
-
+        type: boolean
   MenuItemCreateRequest:
-    type: "object"
+    type: object
     required:
-      - "name"
-      - "price"
+      - name
+      - price
     properties:
       name:
-        type: "string"
+        type: string
+        maxLength: 255
       description:
-        type: "string"
+        type: string
+        maxLength: 1000
       imagePath:
-        type: "string"
+        type: string
+        maxLength: 255
       price:
-        type: "number"
-        format: "double"
+        type: integer
+        format: int64
+        description: Value in minor units (cents)
       available:
-        type: "boolean"
+        type: boolean
         default: true
-
   MenuItemUpdateRequest:
-    type: "object"
+    type: object
     properties:
       name:
-        type: "string"
+        type: string
+        maxLength: 255
       description:
-        type: "string"
+        type: string
+        maxLength: 1000
       imagePath:
-        type: "string"
+        type: string
+        maxLength: 255
       price:
-        type: "number"
-        format: "double"
+        type: integer
+        format: int64
         minimum: 0
+        description: Value in minor units (cents)
       available:
-        type: "boolean"
-
+        type: boolean
   Order:
-    type: "object"
+    type: object
     required:
-      - "id"
-      - "createdAt"
-      - "source"
+      - id
+      - createdAt
+      - source
     properties:
       id:
-        type: "string"
-        format: "uuid"
+        type: string
+        format: uuid
       createdAt:
-        type: "string"
-        format: "date-time"
+        type: string
+        format: date-time
       totalPrice:
-        type: "number"
-        format: "double"
+        type: integer
+        format: int64
+        description: Value in minor units (cents)
       source:
-        type: "string"
+        type: string
         enum:
-          - "TABLET"
-          - "WAITER"
-          - "KIOSK"
-          - "WEB"
+          - TABLET
+          - WAITER
+          - KIOSK
+          - WEB
       table:
-        type: "integer"
-        format: "int32"
-        description: "Table number for dine-in orders"
+        type: integer
+        format: int32
+        description: Table number for dine-in orders
       status:
-        type: "string"
+        type: string
         enum:
-          - "CREATED"
-          - "PREPARING"
-          - "READY"
-          - "SERVED"
-          - "CANCELLED"
-          - "PAID"
-        description: "Current order status"
+          - CREATED
+          - PREPARING
+          - READY
+          - SERVED
+          - CANCELLED
+          - PAID
+        description: Current order status
       items:
-        type: "array"
+        type: array
         items:
-          $ref: "#/definitions/OrderItem"
-
+          $ref: '#/definitions/OrderItem'
   OrderCreateRequest:
-    type: "object"
+    type: object
     required:
-      - "source"
-      - "items"
-      - "table"
+      - source
+      - items
+      - table
     properties:
       source:
-        type: "string"
+        type: string
         enum:
-          - "TABLET"
-          - "WAITER"
-          - "KIOSK"
-          - "WEB"
+          - TABLET
+          - WAITER
+          - KIOSK
+          - WEB
       table:
-        type: "integer"
-        format: "int32"
-        description: "Table number for dine-in orders"
+        type: integer
+        format: int32
+        description: Table number for dine-in orders
       items:
-        type: "array"
+        type: array
         minItems: 1
         items:
-          $ref: "#/definitions/OrderItemCreateRequest"
-
+          $ref: '#/definitions/OrderItemCreateRequest'
   OrderItem:
-    type: "object"
+    type: object
     required:
-      - "id"
-      - "orderId"
-      - "menuItemId"
-      - "quantity"
-      - "unitPrice"
+      - id
+      - orderId
+      - menuItemId
+      - quantity
+      - unitPrice
     properties:
       id:
-        type: "string"
-        format: "uuid"
+        type: string
+        format: uuid
       orderId:
-        type: "string"
-        format: "uuid"
+        type: string
+        format: uuid
       menuItemId:
-        type: "string"
-        format: "uuid"
+        type: string
+        format: uuid
       quantity:
-        type: "integer"
-        format: "int32"
+        type: integer
+        format: int32
         minimum: 1
       unitPrice:
-        type: "number"
-        format: "double"
-        description: "Price per unit at time of order"
+        type: integer
+        format: int64
+        description: Value in minor units (cents)
       createdAt:
-        type: "string"
-        format: "date-time"
+        type: string
+        format: date-time
       status:
-        type: "string"
+        type: string
         enum:
-          - "CREATED"
-          - "PREPARING"
-          - "READY"
-          - "SERVED"
-          - "CANCELLED"
-        description: "Current item status"
-
+          - CREATED
+          - PREPARING
+          - READY
+          - SERVED
+          - CANCELLED
+        description: Current item status
   OrderItemCreateRequest:
-    type: "object"
+    type: object
     required:
-      - "menuId"
-      - "menuItemId"
-      - "quantity"
+      - menuId
+      - menuItemId
+      - quantity
     properties:
       menuId:
-        type: "string"
-        format: "uuid"
-        description: "Menu ID for validation"
+        type: string
+        format: uuid
+        description: Menu ID for validation
       menuItemId:
-        type: "string"
-        format: "uuid"
-        description: "Menu item ID to add"
+        type: string
+        format: uuid
+        description: Menu item ID to add
       quantity:
-        type: "integer"
-        format: "int32"
+        type: integer
+        format: int32
         minimum: 1
-
+        maximum: 100
   OrderItemUpdateRequest:
-    type: "object"
+    type: object
     required:
-      - "quantity"
+      - quantity
     properties:
       quantity:
-        type: "integer"
-        format: "int32"
+        type: integer
+        format: int32
         minimum: 1
-
+        maximum: 100
   OrderStatusHistory:
-    type: "object"
+    type: object
     required:
-      - "id"
-      - "orderId"
-      - "status"
-      - "timestamp"
-      - "updatedBy"
+      - id
+      - orderId
+      - status
+      - timestamp
+      - updatedBy
     properties:
       id:
-        type: "string"
-        format: "uuid"
+        type: string
+        format: uuid
       orderId:
-        type: "string"
-        format: "uuid"
+        type: string
+        format: uuid
       status:
-        type: "string"
+        type: string
         enum:
-          - "CREATED"
-          - "PREPARING"
-          - "READY"
-          - "SERVED"
-          - "CANCELLED"
-          - "PAID"
+          - CREATED
+          - PREPARING
+          - READY
+          - SERVED
+          - CANCELLED
+          - PAID
       timestamp:
-        type: "string"
-        format: "date-time"
+        type: string
+        format: date-time
       updatedBy:
-        type: "string"
-
+        type: string
   OrderStatusHistoryCreateRequest:
-    type: "object"
+    type: object
     required:
-      - "status"
-      - "updatedBy"
+      - status
+      - updatedBy
     properties:
       status:
-        type: "string"
+        type: string
         enum:
-          - "CREATED"
-          - "PREPARING"
-          - "READY"
-          - "SERVED"
-          - "CANCELLED"
-          - "PAID"
+          - CREATED
+          - PREPARING
+          - READY
+          - SERVED
+          - CANCELLED
+          - PAID
       updatedBy:
-        type: "string"
-
+        type: string
   OrderItemStatusHistory:
-    type: "object"
+    type: object
     required:
-      - "id"
-      - "orderItemId"
-      - "status"
-      - "timestamp"
-      - "updatedBy"
+      - id
+      - orderItemId
+      - status
+      - timestamp
+      - updatedBy
     properties:
       id:
-        type: "string"
-        format: "uuid"
+        type: string
+        format: uuid
       orderItemId:
-        type: "string"
-        format: "uuid"
+        type: string
+        format: uuid
       status:
-        type: "string"
+        type: string
         enum:
-          - "CREATED"
-          - "PREPARING"
-          - "READY"
-          - "SERVED"
-          - "CANCELLED"
+          - CREATED
+          - PREPARING
+          - READY
+          - SERVED
+          - CANCELLED
       timestamp:
-        type: "string"
-        format: "date-time"
+        type: string
+        format: date-time
       updatedBy:
-        type: "string"
-
+        type: string
   OrderItemStatusHistoryCreateRequest:
-    type: "object"
+    type: object
     required:
-      - "status"
-      - "updatedBy"
+      - status
+      - updatedBy
     properties:
       status:
-        type: "string"
+        type: string
         enum:
-          - "CREATED"
-          - "PREPARING"
-          - "READY"
-          - "SERVED"
-          - "CANCELLED"
+          - CREATED
+          - PREPARING
+          - READY
+          - SERVED
+          - CANCELLED
       updatedBy:
-        type: "string"
-
+        type: string
   Payment:
-    type: "object"
+    type: object
     required:
-      - "id"
-      - "orderId"
-      - "amount"
-      - "status"
-      - "method"
-      - "createdAt"
+      - id
+      - orderId
+      - amount
+      - status
+      - method
+      - createdAt
     properties:
       id:
-        type: "string"
-        format: "uuid"
+        type: string
+        format: uuid
       orderId:
-        type: "string"
-        format: "uuid"
+        type: string
+        format: uuid
       amount:
-        type: "number"
-        format: "double"
+        type: integer
+        format: int64
+        description: Value in minor units (cents)
       status:
-        type: "string"
+        type: string
         enum:
-          - "PENDING"
-          - "AUTHORIZED"
-          - "PAID"
-          - "FAILED"
-          - "REFUNDED"
+          - PENDING
+          - AUTHORIZED
+          - PAID
+          - FAILED
+          - REFUNDED
       method:
-        type: "string"
-        example: "CARD"
+        type: string
+        example: CARD
       createdAt:
-        type: "string"
-        format: "date-time"
+        type: string
+        format: date-time
       updatedAt:
-        type: "string"
-        format: "date-time"
-        description: "Last update timestamp"
+        type: string
+        format: date-time
+        description: Last update timestamp
       transactionId:
-        type: "string"
-        description: "External payment gateway transaction ID"
+        type: string
+        description: External payment gateway transaction ID
       failureReason:
-        type: "string"
-        description: "Reason for payment failure if applicable"
-
+        type: string
+        description: Reason for payment failure if applicable
   PaymentCreateRequest:
-    type: "object"
+    type: object
     required:
-      - "method"
+      - method
     properties:
       method:
-        type: "string"
-        description: "Payment method (e.g., CARD, CASH, DIGITAL_WALLET)"
-        example: "CARD"
-
+        type: string
+        description: Payment method (e.g., CARD, CASH, DIGITAL_WALLET)
+        example: CARD
   OrderItemStatusChangedEvent:
-    type: "object"
+    type: object
     required:
-      - "orderId"
-      - "orderItemId"
-      - "newStatus"
-      - "oldStatus"
-      - "timestamp"
-      - "updatedBy"
-      - "eventId"
+      - orderId
+      - orderItemId
+      - newStatus
+      - oldStatus
+      - timestamp
+      - updatedBy
+      - eventId
     properties:
       orderId:
-        type: "string"
-        format: "uuid"
+        type: string
+        format: uuid
       orderItemId:
-        type: "string"
-        format: "uuid"
+        type: string
+        format: uuid
       newStatus:
-        type: "string"
+        type: string
         enum:
-          - "CREATED"
-          - "PREPARING"
-          - "READY"
-          - "SERVED"
-          - "CANCELLED"
+          - CREATED
+          - PREPARING
+          - READY
+          - SERVED
+          - CANCELLED
       oldStatus:
-        type: "string"
+        type: string
         enum:
-          - "CREATED"
-          - "PREPARING"
-          - "READY"
-          - "SERVED"
-          - "CANCELLED"
-        description: "Previous status before transition"
+          - CREATED
+          - PREPARING
+          - READY
+          - SERVED
+          - CANCELLED
+        description: Previous status before transition
       timestamp:
-        type: "string"
-        format: "date-time"
+        type: string
+        format: date-time
       updatedBy:
-        type: "string"
-        description: "User or service that made the status change"
+        type: string
+        description: User or service that made the status change
       eventId:
-        type: "string"
-        description: "Unique identifier for idempotent processing"
-
+        type: string
+        description: Unique identifier for idempotent processing
   OrderStatusChangedEvent:
-    type: "object"
+    type: object
     required:
-      - "orderId"
-      - "newStatus"
-      - "oldStatus"
-      - "timestamp"
-      - "updatedBy"
-      - "eventId"
+      - orderId
+      - newStatus
+      - oldStatus
+      - timestamp
+      - updatedBy
+      - eventId
     properties:
       orderId:
-        type: "string"
-        format: "uuid"
+        type: string
+        format: uuid
       newStatus:
-        type: "string"
+        type: string
         enum:
-          - "CREATED"
-          - "PREPARING"
-          - "READY"
-          - "SERVED"
-          - "PAID"
-          - "CANCELLED"
+          - CREATED
+          - PREPARING
+          - READY
+          - SERVED
+          - PAID
+          - CANCELLED
       oldStatus:
-        type: "string"
+        type: string
         enum:
-          - "CREATED"
-          - "PREPARING"
-          - "READY"
-          - "SERVED"
-          - "PAID"
-          - "CANCELLED"
-        description: "Previous status before transition"
+          - CREATED
+          - PREPARING
+          - READY
+          - SERVED
+          - PAID
+          - CANCELLED
+        description: Previous status before transition
       timestamp:
-        type: "string"
-        format: "date-time"
+        type: string
+        format: date-time
       updatedBy:
-        type: "string"
-        description: "User or service that made the status change"
+        type: string
+        description: User or service that made the status change
       eventId:
-        type: "string"
-        description: "Unique identifier for idempotent processing"
-
+        type: string
+        description: Unique identifier for idempotent processing
   OrderTopicSubscriptionInfo:
-    type: "object"
+    type: object
     required:
-      - "orderId"
-      - "subscriberCount"
+      - orderId
+      - subscriberCount
     properties:
       orderId:
-        type: "string"
-        format: "uuid"
+        type: string
+        format: uuid
       subscriberCount:
-        type: "integer"
-        format: "int32"
+        type: integer
+        format: int32
         minimum: 0
-
   ErrorResponse:
-    type: "object"
+    type: object
     required:
-      - "code"
-      - "message"
-      - "timestamp"
+      - code
+      - message
+      - timestamp
     properties:
       code:
-        type: "string"
+        type: string
       message:
-        type: "string"
+        type: string
       timestamp:
-        type: "string"
-        format: "date-time"
+        type: string
+        format: date-time
+  OrderStatus:
+    type: object
+    required:
+      - orderId
+      - status
+      - timestamp
+    properties:
+      orderId:
+        type: string
+        format: uuid
+      status:
+        type: string
+        enum:
+          - CREATED
+          - PREPARING
+          - READY
+          - SERVED
+          - CANCELLED
+          - PAID
+      timestamp:
+        type: string
+        format: date-time
+  OrderItemStatus:
+    type: object
+    required:
+      - orderItemId
+      - status
+      - timestamp
+    properties:
+      orderItemId:
+        type: string
+        format: uuid
+      status:
+        type: string
+        enum:
+          - CREATED
+          - PREPARING
+          - READY
+          - SERVED
+          - CANCELLED
+      timestamp:
+        type: string
+        format: date-time
