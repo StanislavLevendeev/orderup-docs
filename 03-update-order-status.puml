@@ -1,0 +1,49 @@
+@startuml UpdateOrderStatus
+title Update Order Status Flow with Event Publishing
+
+actor "Kitchen\nStaff" as Staff
+participant "API\nGateway" as Gateway
+participant "Order Status\nService" as OSS
+participant "ActiveMQ\nBroker" as Queue
+participant "Notification\nService" as NS
+participant "Order\nService" as OS
+database "Status DB" as DB
+
+Staff -> Gateway: POST /orders/{orderId}/status\n{status: "PREPARING", updatedBy: "chef"}
+activate Gateway
+Gateway -> OSS: Forward request
+activate OSS
+
+OSS -> DB: RECORD StatusHistory\nstatus=PREPARING, timestamp=now
+activate DB
+DB --> OSS: OrderStatusHistory{id, status, timestamp}
+deactivate DB
+
+OSS -> Queue: PUBLISH Event\nOrderStatusChangedEvent
+activate Queue
+
+note over OSS
+  Event Details:
+  - orderId, newStatus
+  - oldStatus, timestamp
+  - updatedBy: "chef"
+  - eventId: UUID (idempotent)
+end note
+
+Queue -> NS: Topic: order-status-changed
+activate NS
+Queue -> OS: Async listener receives event
+activate OS
+
+NS --> Queue: Event processed
+deactivate NS
+
+OS -> OS: UPDATE Order.status=PREPARING
+deactivate OS
+deactivate Queue
+
+OSS --> Gateway: HTTP 201 Created
+deactivate OSS
+Gateway --> Staff: StatusHistory response
+deactivate Gateway
+@enduml

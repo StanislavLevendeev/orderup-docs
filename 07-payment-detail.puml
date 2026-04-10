@@ -1,0 +1,86 @@
+@startuml PaymentProcessingDetail
+title Payment Service Data Flow and ID Generation
+
+actor "Cashier" as Cashier
+participant "Payment\nController" as Ctrl
+participant "Payment\nService" as PS
+participant "Order\nService\nClient" as OSC
+participant "Status\nService\nClient" as SSC
+participant "Payment\nRepository" as Repo
+participant "Event\nPublisher" as Pub
+
+Cashier -> Ctrl: POST /orders/\n{orderId}/payments
+activate Ctrl
+Ctrl -> PS: processPayment(orderId, request)
+activate PS
+
+PS -> OSC: fetchOrder(orderId)
+activate OSC
+OSC --> PS: OrderDTO{id, items:{}, totalPrice}
+deactivate OSC
+
+note over PS
+  Calculate Total:
+  - For each item in order.items:
+    - Check item status via Status Service
+    - Skip CANCELLED items
+    - Sum quantity × price
+  - Result: 30.00
+end note
+
+PS -> SSC: fetchItemStatus(orderId, itemId)
+activate SSC
+SSC --> PS: "PENDING" or "CANCELLED"
+deactivate SSC
+
+PS -> Repo: Create Payment Record
+activate Repo
+
+note over Repo
+  New Payment Object Created:
+  {
+    id: UUID.randomUUID(),
+    orderId: orderId,
+    amount: 30.00,
+    method: "CREDIT_CARD",
+    status: "SUCCEEDED",
+    createdAt: LocalDateTime.now(),
+    updatedAt: LocalDateTime.now(),
+    transactionId: UUID.randomUUID(),
+    failureReason: null
+  }
+  
+  ✓ ID field is generated!
+  ✓ Ready for JSON serialization
+  ✓ @JsonInclude ensures all fields
+end note
+
+Repo --> PS: Payment{id, orderId, ...}
+deactivate Repo
+
+PS -> Pub: publishPaymentSuccess(payment)
+activate Pub
+Pub --> PS: Event published asynchronously
+deactivate Pub
+
+PS --> Ctrl: Payment{id, orderId, amount, status}
+deactivate PS
+
+Ctrl --> Cashier: HTTP 201 Created\nJSON Response with ID
+deactivate Ctrl
+
+note over Ctrl
+  Response Body:
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "orderId": "bc5f5269-7530-427d-aa7b-9531ccb94388",
+    "amount": 30.00,
+    "method": "CREDIT_CARD",
+    "status": "SUCCEEDED",
+    "createdAt": "2026-04-09T16:08:00"
+  }
+  
+  ✓ Payment ID now available
+  ✓ Can retrieve via GET /payments/{id}
+end note
+@enduml

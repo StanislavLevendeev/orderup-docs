@@ -1,0 +1,75 @@
+@startuml CompleteOrderLifecycle
+title Complete Order Lifecycle
+
+participant "Customer\nApp" as Customer
+participant "API\nGateway" as Gateway
+participant "Kitchen\nApp" as Kitchen
+participant "Cashier\nApp" as Cashier
+participant "Services" as Services
+
+Customer -> Gateway: 1️⃣ POST /orders\n{source: WEB}
+activate Gateway
+Gateway -> Services: Service orchestration
+activate Services
+Services --> Gateway: Order{id, CREATED}
+deactivate Services
+Gateway --> Customer: HTTP 201
+deactivate Gateway
+
+Customer -> Gateway: 2️⃣ POST /orders/{id}/items\n{itemId, qty: 2}
+activate Gateway
+Gateway -> Services: Validate + Add
+activate Services
+Services --> Gateway: Item added
+deactivate Services
+Gateway --> Customer: HTTP 201
+deactivate Gateway
+
+Kitchen -> Gateway: 3️⃣ GET /orders/{id}/status
+activate Gateway
+Gateway -> Services: Query status
+Services --> Gateway: Status: CREATED
+deactivate Services
+Gateway --> Kitchen: Show order
+deactivate Gateway
+
+Kitchen -> Gateway: 4️⃣ POST /orders/{id}/status\n{status: PREPARING}
+activate Gateway
+Gateway -> Services: Update status + Publish event
+activate Services
+Services --> Gateway: HTTP 201
+deactivate Services
+Gateway --> Kitchen: Status updated
+deactivate Gateway
+
+Kitchen -> Gateway: 5️⃣ POST /orders/{id}/status\n{status: READY}  
+activate Gateway
+Gateway -> Services: Update status + Publish event
+Services --> Gateway: HTTP 201
+deactivate Gateway
+
+Cashier -> Gateway: 6️⃣ POST /orders/{id}/payments\n{method: CARD}
+activate Gateway
+Gateway -> Services: Process payment\nCreate Payment{with ID}
+activate Services
+Services --> Gateway: Payment{id, amount, SUCCEEDED}
+deactivate Services
+Gateway --> Cashier: HTTP 201
+deactivate Gateway
+
+Kitchen -> Gateway: 7️⃣ POST /orders/{id}/status\n{status: SERVED}
+activate Gateway
+Gateway -> Services: Update status
+Services --> Gateway: HTTP 201
+deactivate Gateway
+
+note over Services
+  Complete Flow Summary:
+  - Order created (CREATED)
+  - Items added (totalPrice calculated)
+  - Status: PREPARING (event published)
+  - Status: READY (event published)
+  - Payment processed (Payment ID created)
+  - Status: SERVED (complete)
+end note
+@enduml

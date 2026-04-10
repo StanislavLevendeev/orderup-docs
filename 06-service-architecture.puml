@@ -1,0 +1,79 @@
+@startuml ServiceArchitecture
+!define ARROWCOLOR #FF6B6B
+!define RESTCOLOR #4ECDC4
+!define ASYNCCOLOR #95E1D3
+
+title OrderUp Service Communication Architecture
+
+package "Client Applications" {
+  [Customer App]
+  [Kitchen App]
+  [Cashier App]
+}
+
+package "API Gateway Layer" {
+  [NGINX Port 80]
+}
+
+package "Microservices" {
+  [Menu Service]
+  [Order Service]
+  [Order Status Service]
+  [Payment Service]
+  [Notification Service]
+}
+
+package "Data Layer" {
+  database "Menu DB" as MenuDB
+  database "Order DB" as OrderDB
+  database "Status History DB" as StatusDB
+  database "Payment DB" as PaymentDB
+}
+
+package "Message Broker" {
+  [ActiveMQ Broker]
+}
+
+package "Real-time Communication" {
+  [WebSocket Server]
+}
+
+'Client to Gateway
+[Customer App] --> [NGINX Port 80]
+[Kitchen App] --> [NGINX Port 80]
+[Cashier App] --> [NGINX Port 80]
+
+'Gateway to Services
+[NGINX Port 80] --> [Order Service] : /orders
+[NGINX Port 80] --> [Menu Service] : /menus
+[NGINX Port 80] --> [Order Status Service] : /orders/{id}/status
+[NGINX Port 80] --> [Payment Service] : /orders/{id}/payments
+
+'Service to Database
+[Menu Service] --> MenuDB
+[Order Service] --> OrderDB
+[Order Status Service] --> StatusDB
+[Payment Service] --> PaymentDB
+
+'Synchronous REST calls (blue)
+[Order Service] --> [Menu Service] : REST\nValidate items
+[Order Service] --> [Order Status Service] : REST\nQuery status
+[Payment Service] --> [Order Service] : REST\nFetch order
+[Payment Service] --> [Order Status Service] : REST\nCheck item status
+
+'Asynchronous Messaging (green)
+[Order Status Service] --> [ActiveMQ Broker] : Publish\nstatus-changed events
+[Payment Service] --> [ActiveMQ Broker] : Publish\npayment events
+
+'Message consumption
+[ActiveMQ Broker] --> [Order Service] : Async listen\norder-status-changed
+[ActiveMQ Broker] --> [Notification Service] : Async listen\nall status topics
+[ActiveMQ Broker] --> [Order Status Service] : Async listen\npayment events
+
+'Real-time updates
+[Notification Service] --> [WebSocket Server]
+[WebSocket Server] --> [Customer App] : Real-time order updates
+[WebSocket Server] --> [Kitchen App] : Real-time order notifications
+[WebSocket Server] --> [Cashier App] : Real-time status changes
+
+@enduml

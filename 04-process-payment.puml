@@ -1,0 +1,63 @@
+@startuml ProcessPayment
+title Process Payment Flow
+
+actor "Cashier\nApp" as Cashier
+participant "API\nGateway" as Gateway
+participant "Payment\nService" as PS
+participant "Order\nService" as OS
+participant "Order Status\nService" as OSS
+participant "ActiveMQ" as Queue
+database "Payment DB" as PDB
+database "Order DB" as ODB
+
+Cashier -> Gateway: POST /orders/{orderId}/payments\n{method: "CREDIT_CARD", amount: 50}
+activate Gateway
+Gateway -> PS: Forward request
+activate PS
+
+PS -> OS: GET /orders/{orderId}
+activate OS
+OS -> ODB: Fetch order details
+ODB --> OS: Order{items, totalPrice}
+OS --> PS: Order data
+deactivate OS
+
+note over PS
+  Calculate Total:
+  - Fetch all items from order
+  - Exclude CANCELLED items
+  - Sum: 15.00 + 15.00 = 30.00
+  - Request amount: 50.00
+end note
+
+PS -> OSS: GET /orders/{id}/items/{id}/status
+activate OSS
+OSS --> PS: Item statuses
+deactivate OSS
+
+PS -> PDB: CREATE Payment Record
+activate PDB
+note over PDB
+  Payment fields:
+  - id: UUID (NEW)
+  - orderId: UUID
+  - amount: 30.00
+  - method: CREDIT_CARD
+  - status: SUCCEEDED
+  - createdAt: timestamp
+  - transactionId: UUID
+end note
+PDB --> PS: Payment{id, orderId, amount, status}
+deactivate PDB
+
+PS -> Queue: PUBLISH PaymentSucceededEvent
+activate Queue
+Queue -> OSS: Async listener (payments topic)
+OSS -> OSS: UPDATE Order.status = PAID
+deactivate Queue
+
+PS --> Gateway: HTTP 201 Created
+deactivate PS
+Gateway --> Cashier: Payment{id: UUID, amount: 30.00, status: SUCCEEDED}
+deactivate Gateway
+@enduml

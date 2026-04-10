@@ -1,0 +1,32 @@
+@startuml CreateOrderWorkflow
+title Create Order Workflow - WEB App
+
+actor "Customer\nApp" as Customer
+participant "API\nGateway" as Gateway
+participant "Order\nService" as OrderService
+database "Order DB" as Database
+
+Customer -> Gateway: POST /orders\n{source: "WEB"}
+activate Gateway
+Gateway -> OrderService: Forward request
+activate OrderService
+
+OrderService -> Database: CREATE Order\nstatus=CREATED
+activate Database
+Database --> OrderService: Order{id, createdAt, status}
+deactivate Database
+
+OrderService --> Gateway: HTTP 201 Created
+deactivate OrderService
+Gateway --> Customer: Order{id, source, status, items=[]}
+deactivate Gateway
+
+note over OrderService
+  Order initialized with:
+  - Unique UUID generated
+  - Source recorded (WEB)
+  - Status: CREATED
+  - Empty items array
+  - totalPrice: 0
+end note
+@enduml

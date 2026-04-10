@@ -1,0 +1,37 @@
+@startuml AddItemsToOrder
+title Add Items to Order Flow
+
+actor "Kitchen\nTablet" as Tablet
+participant "API\nGateway" as Gateway
+participant "Order\nService" as OS
+participant "Menu\nService" as MS
+database "Order DB" as ODB
+
+Tablet -> Gateway: POST /orders/{orderId}/items\n{menuItemId, quantity: 2}
+activate Gateway
+Gateway -> OS: Forward request
+activate OS
+
+OS -> MS: GET /menus/{menuId}/items/{itemId}
+activate MS
+MS --> OS: MenuItem{name, price: 7.50, available: true}
+deactivate MS
+
+note over OS
+  Validation:
+  - Item exists ✓
+  - Item available ✓  
+  - Menu active ✓
+  - Calculate: 7.50 × 2 = 15.00
+end note
+
+OS -> ODB: ADD OrderItem\nUpdate Order.totalPrice
+activate ODB
+ODB --> OS: OrderItem{id, quantity, unitPrice, status}
+deactivate ODB
+
+OS --> Gateway: HTTP 201 Created
+deactivate OS
+Gateway --> Tablet: OrderItem response
+deactivate Gateway
+@enduml

@@ -14,7 +14,7 @@ info:
     - Asynchronous: ActiveMQ message topics for order and order-item status change events.
     - Real-time push: WebSocket topics for kitchen/tablet updates.
 
-host: "localhost:8082"
+host: "localhost:80"
 basePath: ""
 schemes:
   - "http"
