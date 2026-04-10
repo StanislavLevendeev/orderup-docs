@@ -1,63 +1,53 @@
 @startuml ProcessPayment
 title Process Payment Flow
 
-actor "Cashier\nApp" as Cashier
+actor "Waiter\nApp" as Cashier
 participant "API\nGateway" as Gateway
 participant "Payment\nService" as PS
 participant "Order\nService" as OS
+participant "ActiveMQ\nBroker" as Queue
 participant "Order Status\nService" as OSS
-participant "ActiveMQ" as Queue
-database "Payment DB" as PDB
-database "Order DB" as ODB
 
-Cashier -> Gateway: POST /orders/{orderId}/payments\n{method: "CREDIT_CARD", amount: 50}
+Cashier -> Gateway: POST /orders/{orderId}/payments\n{method: "CREDIT_CARD"}
 activate Gateway
 Gateway -> PS: Forward request
 activate PS
 
 PS -> OS: GET /orders/{orderId}
 activate OS
-OS -> ODB: Fetch order details
-ODB --> OS: Order{items, totalPrice}
-OS --> PS: Order data
+OS --> PS: Order{id, items, status}
 deactivate OS
 
-note over PS
-  Calculate Total:
-  - Fetch all items from order
-  - Exclude CANCELLED items
-  - Sum: 15.00 + 15.00 = 30.00
-  - Request amount: 50.00
-end note
+PS -> PS: Calculate Total\n(exclude CANCELLED items,\nsum: unitPrice * quantity)
 
-PS -> OSS: GET /orders/{id}/items/{id}/status
-activate OSS
-OSS --> PS: Item statuses
-deactivate OSS
+PS -> PS: Validate order total > 0
 
-PS -> PDB: CREATE Payment Record
-activate PDB
-note over PDB
-  Payment fields:
-  - id: UUID (NEW)
-  - orderId: UUID
-  - amount: 30.00
-  - method: CREDIT_CARD
-  - status: SUCCEEDED
-  - createdAt: timestamp
-  - transactionId: UUID
-end note
-PDB --> PS: Payment{id, orderId, amount, status}
-deactivate PDB
+PS -> PS: CREATE Payment Record\n(store in-memory)
 
-PS -> Queue: PUBLISH PaymentSucceededEvent
+PS -> Queue: PUBLISH PaymentSucceededEvent\n(async, non-blocking)
 activate Queue
-Queue -> OSS: Async listener (payments topic)
-OSS -> OSS: UPDATE Order.status = PAID
-deactivate Queue
 
-PS --> Gateway: HTTP 201 Created
+PS --> Gateway: HTTP 201 Created\nPayment{id, orderId, amount, status}
 deactivate PS
-Gateway --> Cashier: Payment{id: UUID, amount: 30.00, status: SUCCEEDED}
+Gateway --> Cashier: Response
 deactivate Gateway
+
+par Async Event Processing
+  Queue -> OSS: Message on topic: payments
+  activate OSS
+  
+  OSS -> OSS: UPDATE Order.status = PAID\n(record in OrderStatusHistory)
+  
+  OSS -> Queue: PUBLISH OrderStatusChangedEvent\n(async)
+  
+  Queue -> OS: Message on topic:\norder-status-changed
+  activate OS
+  OS -> OS: UPDATE Order.status = PAID
+  OS --> Queue: Event consumed
+  deactivate OS
+  
+  deactivate OSS
+end
+
+deactivate Queue
 @enduml

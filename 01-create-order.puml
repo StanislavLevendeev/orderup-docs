@@ -1,32 +1,45 @@
 @startuml CreateOrderWorkflow
 title Create Order Workflow - WEB App
 
-actor "Customer\nApp" as Customer
+actor "Waiter\nApp" as Customer
 participant "API\nGateway" as Gateway
 participant "Order\nService" as OrderService
-database "Order DB" as Database
+participant "Order-Status\nService" as StatusService
+participant "Menu\nService" as MenuService
 
-Customer -> Gateway: POST /orders\n{source: "WEB"}
+Customer -> Gateway: POST /orders\n{source: "TABLET", items: [...]}
 activate Gateway
 Gateway -> OrderService: Forward request
 activate OrderService
 
-OrderService -> Database: CREATE Order\nstatus=CREATED
-activate Database
-Database --> OrderService: Order{id, createdAt, status}
-deactivate Database
+OrderService -> StatusService: Create order status
+activate StatusService
+StatusService --> OrderService: Status created
+deactivate StatusService
 
-OrderService --> Gateway: HTTP 201 Created
+loop For each item
+  OrderService -> MenuService: Get menu item details
+  activate MenuService
+  MenuService --> OrderService: MenuItem{id, price, ...}
+  deactivate MenuService
+  
+  OrderService -> StatusService: Create order item status
+  activate StatusService
+  StatusService --> OrderService: Item status created
+  deactivate StatusService
+end
+
+OrderService --> Gateway: HTTP 201 Created\nOrder{id, status, items, totalPrice}
 deactivate OrderService
-Gateway --> Customer: Order{id, source, status, items=[]}
+Gateway --> Customer: Order{id, source, status, items, totalPrice}
 deactivate Gateway
 
-note over OrderService
-  Order initialized with:
-  - Unique UUID generated
-  - Source recorded (WEB)
-  - Status: CREATED
-  - Empty items array
-  - totalPrice: 0
-end note
+' note over OrderService
+'   Order stored in-memory with:
+'   - Unique UUID generated
+'   - Source recorded (WEB)
+'   - Status: CREATED
+'   - Items populated with prices
+'   - totalPrice calculated
+' end note
 @enduml

@@ -5,45 +5,53 @@ actor "Kitchen\nStaff" as Staff
 participant "API\nGateway" as Gateway
 participant "Order Status\nService" as OSS
 participant "ActiveMQ\nBroker" as Queue
-participant "Notification\nService" as NS
 participant "Order\nService" as OS
-database "Status DB" as DB
 
-Staff -> Gateway: POST /orders/{orderId}/status\n{status: "PREPARING", updatedBy: "chef"}
+Staff -> Gateway: POST /orders/{orderId}/status\n{status: "PREPARING", updatedBy: "kitchen"}
 activate Gateway
 Gateway -> OSS: Forward request
 activate OSS
 
-OSS -> DB: RECORD StatusHistory\nstatus=PREPARING, timestamp=now
-activate DB
-DB --> OSS: OrderStatusHistory{id, status, timestamp}
-deactivate DB
-
-OSS -> Queue: PUBLISH Event\nOrderStatusChangedEvent
-activate Queue
-
 note over OSS
-  Event Details:
-  - orderId, newStatus
-  - oldStatus, timestamp
-  - updatedBy: "chef"
-  - eventId: UUID (idempotent)
+  1. Validate status transition
+  2. Validate against item statuses
+  3. Record new status
 end note
 
-Queue -> NS: Topic: order-status-changed
-activate NS
-Queue -> OS: Async listener receives event
-activate OS
+OSS -> OSS: Validate & Record\nOrderStatusHistory
 
-NS --> Queue: Event processed
-deactivate NS
+OSS -> Queue: PUBLISH OrderStatusChangedEvent\n(async, non-blocking)
+activate Queue
+Queue --> OSS: Published
 
-OS -> OS: UPDATE Order.status=PREPARING
-deactivate OS
+OSS --> Gateway: HTTP 201 Created\nOrderStatusHistory{id, status, timestamp}
+deactivate OSS
+Gateway --> Staff: Response
+deactivate Gateway
+
+par Async Event Processing
+  Queue -> OS: Message on topic:\norder-status-changed
+  activate OS
+  
+  ' note over OS
+  '   Event contains:
+  '   - orderId
+  '   - newStatus
+  '   - oldStatus
+  '   - eventId (idempotent)
+  '   - timestamp
+  ' end note
+  
+  OS -> OS: UPDATE Order.status\n= PREPARING
+  OS --> Queue: Event consumed
+  deactivate OS
+end
+
 deactivate Queue
 
-OSS --> Gateway: HTTP 201 Created
-deactivate OSS
-Gateway --> Staff: StatusHistory response
-deactivate Gateway
+' note over OSS, OS
+'   If item status changes:
+'   OrderItemStatusChangedEvent\npublished to order-item-status-changed topic
+'   Order Service updates item status\n& recalculates totalPrice
+' end note
 @enduml
